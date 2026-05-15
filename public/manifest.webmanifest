@@ -1,0 +1,19 @@
+{
+  "name": "PharmaAgro Inventory",
+  "short_name": "PharmaAgro",
+  "description": "Pharmacy and agro inventory, sales, customers, purchases, and ledger management.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
