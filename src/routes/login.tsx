@@ -27,7 +27,7 @@ function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return toast.error(error.message);
-    nav({ to: "/dashboard" });
+    nav({ to: email.trim().toLowerCase() === "admin@purchasesales.com" ? "/admin" : "/dashboard" });
   }
 
   async function onGoogle() {

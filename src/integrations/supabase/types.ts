@@ -388,9 +388,13 @@ export type Database = {
       shops: {
         Row: {
           address: string | null
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           gst: string | null
           id: string
+          is_approved: boolean
+          is_enabled: boolean
           license: string | null
           name: string
           owner_name: string | null
@@ -398,9 +402,13 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           gst?: string | null
           id?: string
+          is_approved?: boolean
+          is_enabled?: boolean
           license?: string | null
           name: string
           owner_name?: string | null
@@ -408,9 +416,13 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           gst?: string | null
           id?: string
+          is_approved?: boolean
+          is_enabled?: boolean
           license?: string | null
           name?: string
           owner_name?: string | null
@@ -502,6 +514,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_platform_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "staff"

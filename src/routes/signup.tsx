@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Eye, EyeOff, Leaf } from "lucide-react";
+import { CheckCircle2, Clock, Eye, EyeOff, Leaf, Mail, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -15,6 +15,7 @@ function Signup() {
   const [form, setForm] = useState({ shop: "", owner: "", phone: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [registeredShop, setRegisteredShop] = useState("");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,14 +28,48 @@ function Signup() {
         data: { shop_name: form.shop, full_name: form.owner, phone: form.phone },
       },
     });
+    await supabase.auth.signOut();
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Shop created!");
-    nav({ to: "/dashboard" });
+    setRegisteredShop(form.shop);
   }
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  if (registeredShop) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+        <Card className="w-full max-w-md overflow-hidden">
+          <div className="bg-green-600 px-6 py-8 text-center text-white">
+            <CheckCircle2 className="mx-auto h-12 w-12" />
+            <h1 className="mt-4 text-2xl font-bold">Registration Successful!</h1>
+            <p className="mt-3 text-sm text-white/90">Thank you for registering with Purchase Sales Management System</p>
+          </div>
+          <div className="space-y-5 p-5">
+            <p className="text-center text-sm text-muted-foreground">Your account has been created successfully.</p>
+            <div className="rounded-lg bg-muted p-4">
+              <span className="text-sm text-muted-foreground">Shop: </span>
+              <span className="font-semibold">{registeredShop}</span>
+            </div>
+            <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-center text-yellow-900">
+              <Clock className="mx-auto h-5 w-5" />
+              <h2 className="mt-2 font-semibold">Waiting for Admin Approval</h2>
+              <p className="mt-2 text-sm">Your account is currently pending approval from the administrator. You will be able to login once your account is approved.</p>
+              <p className="mt-3 flex items-center justify-center gap-2 text-xs"><Mail className="h-3 w-3" />You will receive confirmation after approval.</p>
+            </div>
+            <div className="rounded-lg bg-blue-50 p-4 text-blue-950">
+              <p className="mb-3 flex items-center gap-2 text-sm font-semibold"><Phone className="h-4 w-4" />For any queries, please contact admin:</p>
+              <a className="block rounded-md bg-white px-3 py-2 text-sm font-medium text-blue-700" href="tel:+919284834754">+91 92848 34754</a>
+              <a className="mt-2 block rounded-md bg-white px-3 py-2 text-sm font-medium text-blue-700" href="tel:+919823251105">+91 98232 51105</a>
+            </div>
+            <Button className="w-full" onClick={() => nav({ to: "/login" })}>Go to Login Page</Button>
+            <p className="text-center text-xs text-muted-foreground">You will be able to login after admin approval</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-muted/40">
@@ -46,7 +81,7 @@ function Signup() {
           <span className="font-semibold text-lg">PharmaAgro</span>
         </div>
         <h1 className="text-2xl font-bold">Create your shop</h1>
-        <p className="text-sm text-muted-foreground mt-1">Set up your tenant in under a minute</p>
+        <p className="text-sm text-muted-foreground mt-1">Your shop will start after admin approval</p>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div className="space-y-2"><Label>Shop Name</Label><Input required value={form.shop} onChange={set("shop")} /></div>
           <div className="space-y-2"><Label>Owner Name</Label><Input required value={form.owner} onChange={set("owner")} /></div>
