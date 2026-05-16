@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ function Suppliers() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [form, setForm] = useState(emptySupplierForm);
+  const [search, setSearch] = useState("");
 
   const { data: rows = [] } = useQuery({
     queryKey: ["suppliers", shop?.shop_id],
@@ -73,6 +74,12 @@ function Suppliers() {
     setOpen(true);
   };
 
+  const filteredRows = rows.filter((supplier) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return [supplier.name, supplier.phone, supplier.email].some((value) => (value ?? "").toLowerCase().includes(query));
+  });
+
   return (
     <div>
       <PageHeader title="Suppliers" description="Manage suppliers and outstanding payables" actions={
@@ -90,12 +97,18 @@ function Suppliers() {
           </DialogContent>
         </Dialog>
       } />
+      <Card className="p-3 sm:p-4 mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search suppliers by name, phone, email..." className="pl-9" />
+        </div>
+      </Card>
       <Card>
         <Table>
           <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Phone</TableHead><TableHead>Email</TableHead><TableHead className="text-right">Due (Payable)</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
-            {rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No suppliers yet</TableCell></TableRow>}
-            {rows.map((s) => (
+            {filteredRows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No suppliers found</TableCell></TableRow>}
+            {filteredRows.map((s) => (
               <TableRow key={s.id}>
                 <TableCell className="font-medium">{s.name}</TableCell>
                 <TableCell>{s.phone}</TableCell>

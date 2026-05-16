@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { HandCoins, Pencil, Plus, Trash2 } from "lucide-react";
+import { HandCoins, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,7 @@ function Customers() {
   const [collectCustomer, setCollectCustomer] = useState<Customer | null>(null);
   const [collectAmount, setCollectAmount] = useState(0);
   const [collectDate, setCollectDate] = useState(todayInputValue());
+  const [search, setSearch] = useState("");
 
   const { data: rows = [] } = useQuery({
     queryKey: ["customers", shop?.shop_id],
@@ -137,6 +138,12 @@ function Customers() {
     setCollectOpen(true);
   };
 
+  const filteredRows = rows.filter((customer) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return [customer.name, customer.phone, customer.email].some((value) => (value ?? "").toLowerCase().includes(query));
+  });
+
   return (
     <div>
       <PageHeader title="Customers" description="Customer directory & dues" actions={
@@ -163,23 +170,30 @@ function Customers() {
               <p className="text-sm text-muted-foreground">Current due: Rs.{Number(collectCustomer?.due ?? 0).toLocaleString()}</p>
             </div>
             <div className="space-y-2">
-              <Label>Amount (Rs.)</Label>
-              <Input type="number" min={1} max={Number(collectCustomer?.due ?? 0)} value={collectAmount} onChange={(e) => setCollectAmount(+e.target.value)} />
-            </div>
             <div className="space-y-2">
               <Label>Collection Date</Label>
               <Input type="date" value={collectDate} onChange={(e) => setCollectDate(e.target.value)} />
             </div>
+              <Label>Amount (Rs.)</Label>
+              <Input type="number" min={1} max={Number(collectCustomer?.due ?? 0)} value={collectAmount} onChange={(e) => setCollectAmount(+e.target.value)} />
+            </div>
+
           </div>
           <DialogFooter><Button onClick={() => collect.mutate()} disabled={collect.isPending}>Collect</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <Card className="p-3 sm:p-4 mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customers by name, phone, email..." className="pl-9" />
+        </div>
+      </Card>
       <Card>
         <Table>
           <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Phone</TableHead><TableHead>Email</TableHead><TableHead className="text-right">Due</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
-            {rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No customers yet</TableCell></TableRow>}
-            {rows.map((c) => (
+            {filteredRows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No customers found</TableCell></TableRow>}
+            {filteredRows.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell>{c.phone}</TableCell>
