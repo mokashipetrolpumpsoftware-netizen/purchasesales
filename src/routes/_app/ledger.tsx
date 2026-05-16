@@ -112,7 +112,7 @@ function Ledger() {
     <div>
       <PageHeader title="Ledger / Accounts" description="Auto party-wise customer ledger reports" />
 
-      <Card className="p-4 mb-6">
+      <Card className="p-3 sm:p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-4 items-end">
           <div className="space-y-2">
             <Label htmlFor="ledger-from">From date</Label>
@@ -130,10 +130,10 @@ function Ledger() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5"><p className="text-sm text-muted-foreground">Total Debits</p><p className="text-2xl font-bold text-success mt-1">Rs.{totalDebit.toLocaleString()}</p></Card>
-        <Card className="p-5"><p className="text-sm text-muted-foreground">Total Credits</p><p className="text-2xl font-bold text-destructive mt-1">Rs.{totalCredit.toLocaleString()}</p></Card>
-        <Card className="p-5"><p className="text-sm text-muted-foreground">Closing Balance</p><p className="text-2xl font-bold mt-1">Rs.{totalBalance.toLocaleString()}</p></Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+        <Card className="p-3 sm:p-5"><p className="text-sm text-muted-foreground">Total Debits</p><p className="text-xl sm:text-2xl font-bold text-success mt-1 break-words">Rs.{totalDebit.toLocaleString()}</p></Card>
+        <Card className="p-3 sm:p-5"><p className="text-sm text-muted-foreground">Total Credits</p><p className="text-xl sm:text-2xl font-bold text-destructive mt-1 break-words">Rs.{totalCredit.toLocaleString()}</p></Card>
+        <Card className="p-3 sm:p-5"><p className="text-sm text-muted-foreground">Closing Balance</p><p className="text-xl sm:text-2xl font-bold mt-1 break-words">Rs.{totalBalance.toLocaleString()}</p></Card>
       </div>
 
       <Card>

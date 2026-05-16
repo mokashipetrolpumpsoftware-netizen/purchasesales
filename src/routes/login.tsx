@@ -47,7 +47,7 @@ function Login() {
         <p className="text-sm text-primary-foreground/70">© 2026 PharmaAgro Inc.</p>
       </div>
       <div className="flex items-center justify-center p-6">
-        <Card className="w-full max-w-md p-8">
+        <Card className="w-full max-w-md p-5 sm:p-8">
           <h1 className="text-2xl font-bold">Welcome back</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to your shop dashboard</p>
           <form onSubmit={onSubmit} className="mt-6 space-y-4">

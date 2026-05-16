@@ -31,16 +31,16 @@ export function AppLayout({ children }: { children?: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-muted/30">
+      <div className="min-h-screen flex w-full overflow-x-hidden bg-muted/30">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center gap-3 border-b bg-card px-4 sticky top-0 z-10">
+          <header className="h-14 flex items-center gap-2 sm:gap-3 border-b bg-card px-3 sm:px-4 sticky top-0 z-10">
             <SidebarTrigger />
             <div className="relative hidden md:block flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search..." className="pl-9 h-9 bg-muted/50 border-0" />
             </div>
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
               </Button>
@@ -58,7 +58,7 @@ export function AppLayout({ children }: { children?: React.ReactNode }) {
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-6 overflow-auto">{children ?? <Outlet />}</main>
+          <main className="flex-1 min-w-0 overflow-auto p-3 sm:p-4 lg:p-6">{children ?? <Outlet />}</main>
         </div>
       </div>
     </SidebarProvider>

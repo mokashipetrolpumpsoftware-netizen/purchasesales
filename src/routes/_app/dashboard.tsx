@@ -44,22 +44,22 @@ function Dashboard() {
     <div>
       <PageHeader title="Dashboard" description={`Welcome to ${(shop as any)?.shops?.name ?? "your shop"}`} actions={<Button asChild><Link to="/sales/new">New Invoice</Link></Button>} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((s) => (
-          <Card key={s.label} className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
+          <Card key={s.label} className="p-3 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{s.label}</p>
-                <p className="text-2xl font-bold mt-2">{s.value}</p>
+                <p className="text-lg sm:text-2xl font-bold mt-2 break-words">{s.value}</p>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><s.icon className="h-5 w-5" /></div>
+              <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><s.icon className="h-5 w-5" /></div>
             </div>
           </Card>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-        <Card className="p-5 lg:col-span-2">
+        <Card className="p-3 sm:p-5 lg:col-span-2">
           <h3 className="font-semibold mb-4">Sales — Last 7 Days</h3>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={days}>
@@ -71,7 +71,7 @@ function Dashboard() {
             </LineChart>
           </ResponsiveContainer>
         </Card>
-        <Card className="p-5">
+        <Card className="p-3 sm:p-5">
           <h3 className="font-semibold mb-4">Quick Actions</h3>
           <div className="space-y-2">
             <Button asChild variant="outline" className="w-full justify-start"><Link to="/inventory">Add Product</Link></Button>
@@ -82,8 +82,8 @@ function Dashboard() {
         </Card>
       </div>
 
-      <Card className="p-5 mt-6">
-        <div className="flex items-center justify-between mb-4">
+      <Card className="p-3 sm:p-5 mt-6">
+        <div className="flex items-center justify-between gap-2 mb-4">
           <h3 className="font-semibold">Recent Sales</h3>
           <Button asChild variant="ghost" size="sm"><Link to="/sales">View all</Link></Button>
         </div>

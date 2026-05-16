@@ -97,7 +97,7 @@ function Inventory() {
           <DialogTrigger asChild><Button onClick={() => { setEditing(null); setForm(empty); }}><Plus className="h-4 w-4 mr-2" />Add Product</Button></DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader><DialogTitle>{editing ? "Edit Product" : "Add Product"}</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
               <div className="space-y-2"><Label>Product Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
               <div className="space-y-2"><Label>Category</Label>
                 <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
@@ -121,7 +121,7 @@ function Inventory() {
         </Dialog>
       } />
 
-      <Card className="p-4 mb-4">
+      <Card className="p-3 sm:p-4 mb-4">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search products..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />

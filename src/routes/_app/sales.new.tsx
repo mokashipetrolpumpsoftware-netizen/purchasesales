@@ -140,7 +140,7 @@ function NewSale() {
     <div>
       <PageHeader title="New Invoice" description="Create a sales invoice" />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="p-5 lg:col-span-2">
+        <Card className="p-3 sm:p-5 lg:col-span-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div className="space-y-2">
               <Label>Customer</Label>
@@ -163,9 +163,9 @@ function NewSale() {
               </Select>
             </div>
           </div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <h3 className="font-semibold">Items</h3>
-            <Button size="sm" variant="outline" disabled={!products.length} onClick={() => setItems([...items, { productId: products[0].id, qty: 1 }])}>
+            <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={!products.length} onClick={() => setItems([...items, { productId: products[0].id, qty: 1 }])}>
               <Plus className="h-4 w-4 mr-1" />Add Item
             </Button>
           </div>
@@ -185,7 +185,7 @@ function NewSale() {
                     </Select>
                   </TableCell>
                   <TableCell><span className={Number(l.stock) < 10 ? "text-destructive" : ""}>{l.stock}</span></TableCell>
-                  <TableCell><Input type="number" className="w-20" value={l.qty} onChange={(e) => { const c = [...items]; c[idx].qty = +e.target.value || 1; setItems(c); }} /></TableCell>
+                  <TableCell><Input type="number" className="w-24" value={l.qty} onChange={(e) => { const c = [...items]; c[idx].qty = +e.target.value || 1; setItems(c); }} /></TableCell>
                   <TableCell className="text-right">₹{l.total.toLocaleString()}</TableCell>
                   <TableCell><Button size="icon" variant="ghost" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button></TableCell>
                 </TableRow>
@@ -194,7 +194,7 @@ function NewSale() {
           </Table>
         </Card>
 
-        <Card className="p-5 h-fit">
+        <Card className="p-3 sm:p-5 h-fit">
           <h3 className="font-semibold mb-4">Bill Summary</h3>
           <div className="space-y-3">
             <div className="flex justify-between text-sm"><span>Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>

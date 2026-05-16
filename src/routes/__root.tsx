@@ -1,6 +1,6 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useNavigate, useRouterState } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
@@ -61,6 +61,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
               ? `
               if ("serviceWorker" in navigator) {
                 window.addEventListener('load', function () {
+                  if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+                    navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                      registrations.forEach(function (registration) {
+                        registration.unregister();
+                      });
+                    });
+                    return;
+                  }
                   navigator.serviceWorker.register('/sw.js').catch(function (error) {
                     console.warn('Service worker registration failed:', error);
                   });
@@ -94,8 +102,41 @@ function RootComponent() {
   const [qc] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={qc}>
+      <AndroidBackButton />
       <Outlet />
       <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );
+}
+
+function AndroidBackButton() {
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  useEffect(() => {
+    let removeListener: (() => void) | undefined;
+
+    import("@capacitor/core").then(({ Capacitor }) => {
+      if (!Capacitor.isNativePlatform()) return;
+
+      import("@capacitor/app").then(({ App }) => {
+        App.addListener("backButton", ({ canGoBack }) => {
+          if (canGoBack && window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+
+          if (pathname !== "/dashboard") {
+            navigate({ to: "/dashboard" });
+          }
+        }).then((handle) => {
+          removeListener = () => handle.remove();
+        });
+      });
+    });
+
+    return () => removeListener?.();
+  }, [navigate, pathname]);
+
+  return null;
 }

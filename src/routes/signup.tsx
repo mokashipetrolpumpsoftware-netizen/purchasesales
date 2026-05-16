@@ -37,7 +37,7 @@ function Signup() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-muted/40">
-      <Card className="w-full max-w-md p-8">
+      <Card className="w-full max-w-md p-5 sm:p-8">
         <div className="flex items-center gap-2 mb-6">
           <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
             <Leaf className="h-5 w-5" />

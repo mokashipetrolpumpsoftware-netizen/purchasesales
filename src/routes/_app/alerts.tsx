@@ -26,7 +26,7 @@ function Alerts() {
     <div>
       <PageHeader title="Expiry & Alerts" description="Critical inventory issues that need attention" />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5 border-destructive/30 bg-destructive/5">
+        <Card className="p-3 sm:p-5 border-destructive/30 bg-destructive/5">
           <div className="flex items-center gap-2 mb-4"><AlertTriangle className="h-5 w-5 text-destructive" /><h3 className="font-semibold">Expiring Soon ({expiring.length})</h3></div>
           <Table>
             <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Batch</TableHead><TableHead>Expiry</TableHead></TableRow></TableHeader>
@@ -41,7 +41,7 @@ function Alerts() {
             </TableBody>
           </Table>
         </Card>
-        <Card className="p-5 border-warning/30 bg-warning/5">
+        <Card className="p-3 sm:p-5 border-warning/30 bg-warning/5">
           <div className="flex items-center gap-2 mb-4"><PackageX className="h-5 w-5 text-warning" /><h3 className="font-semibold">Low Stock ({lowStock.length})</h3></div>
           <Table>
             <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Stock</TableHead></TableRow></TableHeader>
