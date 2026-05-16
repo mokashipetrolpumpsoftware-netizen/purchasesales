@@ -57,11 +57,28 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <Scripts />
         <script
           dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
+            __html: import.meta.env.PROD
+              ? `
+              if ("serviceWorker" in navigator) {
                 window.addEventListener('load', function () {
                   navigator.serviceWorker.register('/sw.js').catch(function (error) {
                     console.warn('Service worker registration failed:', error);
+                  });
+                });
+              }
+            `
+              : `
+              if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                  registrations.forEach(function (registration) {
+                    registration.unregister();
+                  });
+                });
+              }
+              if ("caches" in window) {
+                caches.keys().then(function (keys) {
+                  keys.forEach(function (key) {
+                    caches.delete(key);
                   });
                 });
               }

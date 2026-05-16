@@ -90,7 +90,7 @@ function NewSale() {
         const { error: ledgerError } = await supabase.from("ledger_entries").insert({
           shop_id: shop!.shop_id,
           party: selectedCustomer.name,
-          type: "Credit",
+          type: "Debit",
           amount: total,
           note: `Invoice ${invoice_no} pending`,
         });

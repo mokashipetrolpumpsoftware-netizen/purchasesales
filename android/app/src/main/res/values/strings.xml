@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PharmaAgro</string>
+    <string name="title_activity_main">PharmaAgro</string>
+    <string name="package_name">com.pharmaagro.app</string>
+    <string name="custom_url_scheme">com.pharmaagro.app</string>
+</resources>

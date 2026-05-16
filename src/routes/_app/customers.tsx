@@ -85,7 +85,7 @@ function Customers() {
       const { error: ledgerError } = await supabase.from("ledger_entries").insert({
         shop_id: shop!.shop_id,
         party: collectCustomer.name,
-        type: "Debit",
+        type: "Credit",
         amount: collectAmount,
         note: "Customer due collection",
       });
