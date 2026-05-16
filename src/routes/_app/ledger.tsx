@@ -16,6 +16,9 @@ import { useShop } from "@/hooks/useShop";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Capacitor } from "@capacitor/core";
+import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 
 export const Route = createFileRoute("/_app/ledger")({ component: Ledger });
 
@@ -70,13 +73,29 @@ function Ledger() {
   const totalCredit = ledgers.reduce((sum, ledger) => sum + ledger.credit, 0);
   const totalBalance = ledgers.reduce((sum, ledger) => sum + ledger.balance, 0);
 
-  const handleDownload = (ledger: PartyLedger) => {
+  const handleDownload = async (ledger: PartyLedger) => {
     const pdf = createLedgerPdf(ledger, fromDate, toDate);
+    const fileName = fileNameFor(ledger);
+
+    if (Capacitor.isNativePlatform()) {
+      await writeNativePdf(pdf, fileName, Directory.Documents);
+      toast.success("PDF saved on device");
+      return;
+    }
+
     pdf.save(fileNameFor(ledger));
   };
 
   const handleShare = async (ledger: PartyLedger) => {
     const pdf = createLedgerPdf(ledger, fromDate, toDate);
+    const fileName = fileNameFor(ledger);
+
+    if (Capacitor.isNativePlatform()) {
+      const saved = await writeNativePdf(pdf, fileName, Directory.Cache);
+      await Share.share({ title: `${ledger.party} Ledger`, text: `${ledger.party} ledger report`, url: saved.uri, dialogTitle: "Share ledger PDF" });
+      return;
+    }
+
     const file = new File([pdf.output("blob")], fileNameFor(ledger), { type: "application/pdf" });
     const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
 
@@ -257,6 +276,15 @@ function createLedgerPdf(ledger: PartyLedger, fromDate: string, toDate: string) 
   });
 
   return pdf;
+}
+
+function writeNativePdf(pdf: jsPDF, fileName: string, directory: Directory) {
+  return Filesystem.writeFile({
+    path: fileName,
+    data: pdf.output("datauristring").split(",")[1] ?? "",
+    directory,
+    recursive: true,
+  });
 }
 
 function fileNameFor(ledger: PartyLedger) {
