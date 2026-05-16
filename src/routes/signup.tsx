@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Leaf } from "lucide-react";
+import { Eye, EyeOff, Leaf } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ export const Route = createFileRoute("/signup")({ component: Signup });
 function Signup() {
   const nav = useNavigate();
   const [form, setForm] = useState({ shop: "", owner: "", phone: "", email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
@@ -51,7 +52,16 @@ function Signup() {
           <div className="space-y-2"><Label>Owner Name</Label><Input required value={form.owner} onChange={set("owner")} /></div>
           <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={set("phone")} /></div>
           <div className="space-y-2"><Label>Email</Label><Input type="email" required value={form.email} onChange={set("email")} /></div>
-          <div className="space-y-2"><Label>Password</Label><Input type="password" required minLength={6} value={form.password} onChange={set("password")} /></div>
+          <div className="space-y-2">
+            <Label>Password</Label>
+            <div className="relative">
+              <Input type={showPassword ? "text" : "password"} required minLength={6} value={form.password} onChange={set("password")} className="pr-10" />
+              <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2" onClick={() => setShowPassword((value) => !value)}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
+              </Button>
+            </div>
+          </div>
           <Button type="submit" disabled={loading} className="w-full">{loading ? "Creating..." : "Create Shop"}</Button>
         </form>
         <p className="text-sm text-center mt-6 text-muted-foreground">

@@ -21,6 +21,7 @@ export const Route = createFileRoute("/_app/customers")({ component: Customers }
 type Customer = Tables<"customers">;
 
 const emptyCustomerForm = { name: "", phone: "", email: "", due: 0 };
+const todayInputValue = () => new Date().toISOString().slice(0, 10);
 
 function Customers() {
   const { data: shop } = useShop();
@@ -31,6 +32,7 @@ function Customers() {
   const [collectOpen, setCollectOpen] = useState(false);
   const [collectCustomer, setCollectCustomer] = useState<Customer | null>(null);
   const [collectAmount, setCollectAmount] = useState(0);
+  const [collectDate, setCollectDate] = useState(todayInputValue());
 
   const { data: rows = [] } = useQuery({
     queryKey: ["customers", shop?.shop_id],
@@ -87,6 +89,7 @@ function Customers() {
         party: collectCustomer.name,
         type: "Credit",
         amount: collectAmount,
+        date: collectDate,
         note: "Customer due collection",
       });
       if (ledgerError) throw ledgerError;
@@ -95,7 +98,8 @@ function Customers() {
         `Hello ${collectCustomer.name},`,
         "Payment received successfully.",
         "",
-        `Date/Time: ${new Date().toLocaleString("en-IN")}`,
+        `Collection date: ${collectDate}`,
+        `Message time: ${new Date().toLocaleString("en-IN")}`,
         `Received amount: Rs.${collectAmount.toLocaleString()}`,
         `Remaining pending amount: Rs.${remainingDue.toLocaleString()}`,
         `Payment status: ${remainingDue > 0 ? "Pending" : "Paid"}`,
@@ -113,6 +117,7 @@ function Customers() {
       setCollectOpen(false);
       setCollectCustomer(null);
       setCollectAmount(0);
+      setCollectDate(todayInputValue());
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["ledger"] });
     },
@@ -128,6 +133,7 @@ function Customers() {
   const startCollection = (customer: Customer) => {
     setCollectCustomer(customer);
     setCollectAmount(Number(customer.due));
+    setCollectDate(todayInputValue());
     setCollectOpen(true);
   };
 
@@ -159,6 +165,10 @@ function Customers() {
             <div className="space-y-2">
               <Label>Amount (Rs.)</Label>
               <Input type="number" min={1} max={Number(collectCustomer?.due ?? 0)} value={collectAmount} onChange={(e) => setCollectAmount(+e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Collection Date</Label>
+              <Input type="date" value={collectDate} onChange={(e) => setCollectDate(e.target.value)} />
             </div>
           </div>
           <DialogFooter><Button onClick={() => collect.mutate()} disabled={collect.isPending}>Collect</Button></DialogFooter>

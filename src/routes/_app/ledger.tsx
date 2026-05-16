@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, FileText, Share2 } from "lucide-react";
+import { Download, FileText, Share2, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { useShop } from "@/hooks/useShop";
@@ -34,6 +34,7 @@ type PartyLedger = {
 
 function Ledger() {
   const { data: shop } = useShop();
+  const qc = useQueryClient();
   const defaultPeriod = useMemo(() => getDefaultPeriod(), []);
   const [fromDate, setFromDate] = useState(defaultPeriod.from);
   const [toDate, setToDate] = useState(defaultPeriod.to);
@@ -72,6 +73,41 @@ function Ledger() {
   const totalDebit = ledgers.reduce((sum, ledger) => sum + ledger.debit, 0);
   const totalCredit = ledgers.reduce((sum, ledger) => sum + ledger.credit, 0);
   const totalBalance = ledgers.reduce((sum, ledger) => sum + ledger.balance, 0);
+
+  const deleteEntry = useMutation({
+    mutationFn: async (entry: LedgerEntry) => {
+      if (!window.confirm("Delete this ledger entry?")) return false;
+
+      if (isCollectionEntry(entry)) {
+        const { data: customer, error: customerError } = await supabase
+          .from("customers")
+          .select("id, due")
+          .eq("shop_id", shop!.shop_id)
+          .eq("name", entry.party)
+          .maybeSingle();
+        if (customerError) throw customerError;
+        if (customer) {
+          const { error: dueError } = await supabase
+            .from("customers")
+            .update({ due: Number(customer.due) + Number(entry.amount) })
+            .eq("id", customer.id);
+          if (dueError) throw dueError;
+        }
+      }
+
+      const { error } = await supabase.from("ledger_entries").delete().eq("id", entry.id);
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: (deleted) => {
+      if (!deleted) return;
+      toast.success("Ledger entry deleted");
+      setSelected(null);
+      qc.invalidateQueries({ queryKey: ["ledger"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   const handleDownload = async (ledger: PartyLedger) => {
     const pdf = createLedgerPdf(ledger, fromDate, toDate);
@@ -185,12 +221,12 @@ function Ledger() {
                   <Table>
                     <TableHeader><TableRow>
                       <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead>
-                      <TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead><TableHead className="text-right">Balance</TableHead>
+                      <TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead><TableHead className="text-right">Balance</TableHead><TableHead></TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       <TableRow className="bg-muted/50">
                         <TableCell>{fromDate || selected.entries[0]?.date || "-"}</TableCell><TableCell>Opening</TableCell><TableCell>Opening Balance</TableCell>
-                        <TableCell></TableCell><TableCell></TableCell><TableCell className="text-right font-semibold">{money(selected.openingBalance)}</TableCell>
+                        <TableCell></TableCell><TableCell></TableCell><TableCell className="text-right font-semibold">{money(selected.openingBalance)}</TableCell><TableCell></TableCell>
                       </TableRow>
                       {runningRows(selected.entries, selected.openingBalance).map((row) => (
                         <TableRow key={row.id}>
@@ -200,11 +236,16 @@ function Ledger() {
                           <TableCell className="text-right text-success font-medium">{row.debit || ""}</TableCell>
                           <TableCell className="text-right text-destructive font-medium">{row.credit || ""}</TableCell>
                           <TableCell className="text-right font-semibold">{row.balance}</TableCell>
+                          <TableCell>
+                            <Button size="icon" variant="ghost" onClick={() => deleteEntry.mutate(row.entry)} disabled={deleteEntry.isPending}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                       <TableRow className="bg-muted/50 font-semibold">
                         <TableCell>{toDate || selected.entries.at(-1)?.date || "-"}</TableCell><TableCell>Closing</TableCell><TableCell>Closing Balance</TableCell>
-                        <TableCell></TableCell><TableCell></TableCell><TableCell className="text-right">{money(selected.balance)}</TableCell>
+                        <TableCell></TableCell><TableCell></TableCell><TableCell className="text-right">{money(selected.balance)}</TableCell><TableCell></TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -241,8 +282,13 @@ function runningRows(entries: LedgerEntry[], openingBalance = 0) {
       debit: debit ? money(debit) : "",
       credit: credit ? money(credit) : "",
       balance: money(balance),
+      entry,
     };
   });
+}
+
+function isCollectionEntry(entry: LedgerEntry) {
+  return entry.type === "Credit" && (entry.note ?? "").toLowerCase().includes("customer due collection");
 }
 
 function createLedgerPdf(ledger: PartyLedger, fromDate: string, toDate: string) {
