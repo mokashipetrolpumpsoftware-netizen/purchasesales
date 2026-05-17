@@ -19,9 +19,10 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_app/purchases")({ component: Purchases });
 
 type Purchase = Tables<"purchases">;
+type PaymentType = "cash" | "udhari";
 
-const emptyCreateForm = { supplier_id: "", product_id: "", batch: "", expiry: "", qty: 1, price: 0 };
-const emptyEditForm = { bill_no: "", supplier_id: "", date: "", total: 0, status: "Received" };
+const emptyCreateForm = { supplier_id: "", product_id: "", batch: "", expiry: "", qty: 1, price: 0, paymentType: "cash" as PaymentType };
+const emptyEditForm = { bill_no: "", supplier_id: "", date: "", total: 0, status: "Paid" };
 
 function Purchases() {
   const { data: shop } = useShop();
@@ -47,8 +48,9 @@ function Purchases() {
       if (!supplier || !product) throw new Error("Select supplier and product");
       const total = form.qty * form.price;
       const bill_no = `PUR-${Date.now().toString().slice(-6)}`;
+      const status = form.paymentType === "cash" ? "Paid" : "Pending";
       const { data: purchase, error } = await supabase.from("purchases").insert({
-        shop_id: shop!.shop_id, bill_no, supplier_id: supplier.id, supplier_name: supplier.name, total, status: "Received",
+        shop_id: shop!.shop_id, bill_no, supplier_id: supplier.id, supplier_name: supplier.name, total, status,
       }).select().single();
       if (error) throw error;
       const { error: itemError } = await supabase.from("purchase_items").insert({
@@ -58,6 +60,12 @@ function Purchases() {
       if (itemError) throw itemError;
       const { error: stockError } = await supabase.from("products").update({ stock: Number(product.stock) + form.qty, batch: form.batch || product.batch, expiry: form.expiry || product.expiry }).eq("id", product.id);
       if (stockError) throw stockError;
+      if (form.paymentType === "udhari") {
+        const { data: latestSupplier, error: supplierError } = await supabase.from("suppliers").select("due").eq("id", supplier.id).single();
+        if (supplierError) throw supplierError;
+        const { error: dueError } = await supabase.from("suppliers").update({ due: Number(latestSupplier.due) + total }).eq("id", supplier.id);
+        if (dueError) throw dueError;
+      }
     },
     onSuccess: () => { toast.success("Purchase recorded"); setOpen(false); setForm(emptyCreateForm); qc.invalidateQueries(); },
     onError: (e: Error) => toast.error(e.message),
@@ -67,6 +75,8 @@ function Purchases() {
     mutationFn: async () => {
       if (!editing) throw new Error("Select a purchase to edit");
       const supplier = suppliers.find((s) => s.id === editForm.supplier_id);
+      await adjustSupplierDue(editing.supplier_id, editing.status === "Pending" ? -Number(editing.total) : 0);
+      await adjustSupplierDue(supplier?.id ?? null, editForm.status === "Pending" ? Number(editForm.total) : 0);
       const { error } = await supabase.from("purchases").update({
         bill_no: editForm.bill_no,
         supplier_id: supplier?.id ?? null,
@@ -77,18 +87,39 @@ function Purchases() {
       }).eq("id", editing.id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Purchase updated"); setEditOpen(false); setEditing(null); qc.invalidateQueries({ queryKey: ["purchases"] }); },
+    onSuccess: () => {
+      toast.success("Purchase updated");
+      setEditOpen(false);
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["ledger"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const del = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("purchases").delete().eq("id", id);
+    mutationFn: async (purchase: Purchase) => {
+      if (purchase.status === "Pending") await adjustSupplierDue(purchase.supplier_id, -Number(purchase.total));
+      const { error } = await supabase.from("purchases").delete().eq("id", purchase.id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Purchase deleted"); qc.invalidateQueries({ queryKey: ["purchases"] }); },
+    onSuccess: () => {
+      toast.success("Purchase deleted");
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["ledger"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  async function adjustSupplierDue(supplierId: string | null, amount: number) {
+    if (!supplierId || amount === 0) return;
+    const { data, error } = await supabase.from("suppliers").select("due").eq("id", supplierId).single();
+    if (error) throw error;
+    const { error: updateError } = await supabase.from("suppliers").update({ due: Math.max(0, Number(data.due) + amount) }).eq("id", supplierId);
+    if (updateError) throw updateError;
+  }
 
   const startEdit = (purchase: Purchase) => {
     setEditing(purchase);
@@ -97,7 +128,7 @@ function Purchases() {
       supplier_id: purchase.supplier_id ?? "",
       date: purchase.date,
       total: Number(purchase.total),
-      status: purchase.status,
+      status: purchase.status === "Received" ? "Paid" : purchase.status,
     });
     setEditOpen(true);
   };
@@ -120,6 +151,15 @@ function Purchases() {
                 <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
                   <SelectContent>{products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Payment</Label>
+                <Select value={form.paymentType} onValueChange={(v) => setForm({ ...form, paymentType: v as PaymentType })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash - paid now</SelectItem>
+                    <SelectItem value="udhari">Udhari - supplier payable</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -151,7 +191,15 @@ function Purchases() {
               </Select>
             </div>
             <div className="space-y-2"><Label>Total</Label><Input type="text" inputMode="decimal" value={editForm.total} onChange={(e) => setEditForm({ ...editForm, total: +e.target.value })} /></div>
-            <div className="space-y-2"><Label>Status</Label><Input value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Status</Label>
+              <Select value={editForm.status === "Received" ? "Paid" : editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Paid">Paid</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter><Button onClick={() => update.mutate()} disabled={update.isPending}>Save</Button></DialogFooter>
         </DialogContent>
@@ -175,7 +223,7 @@ function Purchases() {
                 <TableCell>
                   <div className="flex justify-end gap-2">
                     <Button size="icon" variant="ghost" onClick={() => startEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => del.mutate(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => del.mutate(p)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </TableCell>
               </TableRow>

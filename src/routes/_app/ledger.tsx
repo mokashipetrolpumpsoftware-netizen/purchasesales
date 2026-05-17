@@ -23,10 +23,13 @@ import { Share } from "@capacitor/share";
 export const Route = createFileRoute("/_app/ledger")({ component: Ledger });
 
 type LedgerEntry = Tables<"ledger_entries">;
+type Sale = Tables<"sales">;
+type Purchase = Tables<"purchases">;
+type LedgerRow = LedgerEntry & { isVirtual?: boolean };
 type PartyLedger = {
   party: string;
   openingBalance: number;
-  entries: LedgerEntry[];
+  entries: LedgerRow[];
   debit: number;
   credit: number;
   balance: number;
@@ -40,7 +43,7 @@ function Ledger() {
   const [toDate, setToDate] = useState(defaultPeriod.to);
   const [selected, setSelected] = useState<PartyLedger | null>(null);
 
-  const { data: rows = [] } = useQuery({
+  const { data: manualRows = [] } = useQuery({
     queryKey: ["ledger", shop?.shop_id],
     enabled: !!shop?.shop_id,
     queryFn: async () => {
@@ -49,6 +52,26 @@ function Ledger() {
       return data ?? [];
     },
   });
+  const { data: sales = [] } = useQuery({
+    queryKey: ["sales", shop?.shop_id],
+    enabled: !!shop?.shop_id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("sales").select("*").order("date", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const { data: purchases = [] } = useQuery({
+    queryKey: ["purchases", shop?.shop_id],
+    enabled: !!shop?.shop_id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("purchases").select("*").order("date", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const rows = useMemo(() => buildLedgerRows(manualRows, sales, purchases), [manualRows, purchases, sales]);
 
   const ledgers = useMemo(() => {
     const groups = new Map<string, LedgerEntry[]>();
@@ -94,6 +117,23 @@ function Ledger() {
           if (dueError) throw dueError;
         }
       }
+      if (isSupplierPaymentEntry(entry)) {
+        const supplierName = entry.party.replace(/^Supplier - /, "");
+        const { data: supplier, error: supplierError } = await supabase
+          .from("suppliers")
+          .select("id, due")
+          .eq("shop_id", shop!.shop_id)
+          .eq("name", supplierName)
+          .maybeSingle();
+        if (supplierError) throw supplierError;
+        if (supplier) {
+          const { error: dueError } = await supabase
+            .from("suppliers")
+            .update({ due: Number(supplier.due) + Number(entry.amount) })
+            .eq("id", supplier.id);
+          if (dueError) throw dueError;
+        }
+      }
 
       const { error } = await supabase.from("ledger_entries").delete().eq("id", entry.id);
       if (error) throw error;
@@ -105,6 +145,7 @@ function Ledger() {
       setSelected(null);
       qc.invalidateQueries({ queryKey: ["ledger"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -237,9 +278,11 @@ function Ledger() {
                           <TableCell className="text-right text-destructive font-medium">{row.credit || ""}</TableCell>
                           <TableCell className="text-right font-semibold">{row.balance}</TableCell>
                           <TableCell>
-                            <Button size="icon" variant="ghost" onClick={() => deleteEntry.mutate(row.entry)} disabled={deleteEntry.isPending}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {!row.entry.isVirtual && (
+                              <Button size="icon" variant="ghost" onClick={() => deleteEntry.mutate(row.entry)} disabled={deleteEntry.isPending}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -267,7 +310,7 @@ function Summary({ label, value, className = "" }: { label: string; value: numbe
   return <div className="text-center rounded-md bg-muted p-3"><p className="text-sm text-muted-foreground">{label}</p><p className={`text-lg font-bold ${className}`}>Rs.{value.toLocaleString()}</p></div>;
 }
 
-function runningRows(entries: LedgerEntry[], openingBalance = 0) {
+function runningRows(entries: LedgerRow[], openingBalance = 0) {
   let balance = openingBalance;
   return entries.map((entry) => {
     const amount = Number(entry.amount);
@@ -289,6 +332,81 @@ function runningRows(entries: LedgerEntry[], openingBalance = 0) {
 
 function isCollectionEntry(entry: LedgerEntry) {
   return entry.type === "Credit" && (entry.note ?? "").toLowerCase().includes("customer due collection");
+}
+
+function isSupplierPaymentEntry(entry: LedgerEntry) {
+  return entry.type === "Debit" && (entry.note ?? "").toLowerCase().includes("supplier payment");
+}
+
+function buildLedgerRows(manualRows: LedgerEntry[], sales: Sale[], purchases: Purchase[]): LedgerRow[] {
+  const manual = manualRows
+    .filter((entry) => !isAutoSaleEntry(entry) && !isAutoPurchaseEntry(entry))
+    .map((entry) => ({ ...entry, party: partyForManualEntry(entry) }));
+
+  const saleRows = sales.flatMap((sale) => {
+    const party = `Customer - ${sale.customer_name || "Walk-in"}`;
+    const base: LedgerRow = {
+      id: `sale-debit-${sale.id}`,
+      shop_id: sale.shop_id,
+      date: sale.date,
+      party,
+      type: "Debit",
+      amount: sale.total,
+      note: `Product Sale - ${sale.invoice_no}${sale.status === "Pending" ? " pending" : ""}`,
+      created_at: sale.created_at,
+      isVirtual: true,
+    };
+    if (sale.status === "Paid") {
+      return [base, {
+        ...base,
+        id: `sale-credit-${sale.id}`,
+        type: "Credit" as const,
+        note: `Payment received - ${sale.invoice_no}`,
+      }];
+    }
+    return [base];
+  });
+
+  const purchaseRows = purchases.flatMap((purchase) => {
+    const party = `Supplier - ${purchase.supplier_name || "Unknown"}`;
+    const base: LedgerRow = {
+      id: `purchase-credit-${purchase.id}`,
+      shop_id: purchase.shop_id,
+      date: purchase.date,
+      party,
+      type: "Credit",
+      amount: purchase.total,
+      note: `Purchase - ${purchase.bill_no}${purchase.status === "Pending" ? " pending" : ""}`,
+      created_at: purchase.created_at,
+      isVirtual: true,
+    };
+    if (purchase.status === "Paid" || purchase.status === "Received") {
+      return [base, {
+        ...base,
+        id: `purchase-debit-${purchase.id}`,
+        type: "Debit" as const,
+        note: `Supplier payment - ${purchase.bill_no}`,
+      }];
+    }
+    return [base];
+  });
+
+  return [...manual, ...saleRows, ...purchaseRows].sort((a, b) => `${a.date}-${a.created_at}`.localeCompare(`${b.date}-${b.created_at}`));
+}
+
+function partyForManualEntry(entry: LedgerEntry) {
+  const note = (entry.note ?? "").toLowerCase();
+  if (note.includes("customer due collection")) return `Customer - ${entry.party}`;
+  if (note.includes("supplier payment")) return `Supplier - ${entry.party}`;
+  return entry.party;
+}
+
+function isAutoSaleEntry(entry: LedgerEntry) {
+  return (entry.note ?? "").toLowerCase().startsWith("invoice ");
+}
+
+function isAutoPurchaseEntry(entry: LedgerEntry) {
+  return (entry.note ?? "").toLowerCase().startsWith("purchase ");
 }
 
 function createLedgerPdf(ledger: PartyLedger, fromDate: string, toDate: string) {

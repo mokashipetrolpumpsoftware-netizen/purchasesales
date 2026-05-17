@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { HandCoins, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_app/suppliers")({ component: Suppliers }
 type Supplier = Tables<"suppliers">;
 
 const emptySupplierForm = { name: "", phone: "", email: "", due: 0 };
+const todayInputValue = () => new Date().toISOString().slice(0, 10);
 
 function Suppliers() {
   const { data: shop } = useShop();
@@ -27,6 +28,10 @@ function Suppliers() {
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [form, setForm] = useState(emptySupplierForm);
   const [search, setSearch] = useState("");
+  const [payOpen, setPayOpen] = useState(false);
+  const [paySupplier, setPaySupplier] = useState<Supplier | null>(null);
+  const [payAmount, setPayAmount] = useState(0);
+  const [payDate, setPayDate] = useState(todayInputValue());
 
   const { data: rows = [] } = useQuery({
     queryKey: ["suppliers", shop?.shop_id],
@@ -68,10 +73,49 @@ function Suppliers() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const pay = useMutation({
+    mutationFn: async () => {
+      if (!paySupplier) throw new Error("Select a supplier");
+      if (payAmount <= 0) throw new Error("Enter amount to pay");
+      const { data: latestSupplier, error: supplierError } = await supabase.from("suppliers").select("due").eq("id", paySupplier.id).single();
+      if (supplierError) throw supplierError;
+      const currentDue = Number(latestSupplier.due);
+      if (payAmount > currentDue) throw new Error("Payment amount cannot be more than payable");
+      const { error: updateError } = await supabase.from("suppliers").update({ due: currentDue - payAmount }).eq("id", paySupplier.id);
+      if (updateError) throw updateError;
+      const { error: ledgerError } = await supabase.from("ledger_entries").insert({
+        shop_id: shop!.shop_id,
+        party: paySupplier.name,
+        type: "Debit",
+        amount: payAmount,
+        date: payDate,
+        note: "Supplier payment",
+      });
+      if (ledgerError) throw ledgerError;
+    },
+    onSuccess: () => {
+      toast.success("Supplier payment recorded");
+      setPayOpen(false);
+      setPaySupplier(null);
+      setPayAmount(0);
+      setPayDate(todayInputValue());
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["ledger"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const startEdit = (supplier: Supplier) => {
     setEditing(supplier);
     setForm({ name: supplier.name, phone: supplier.phone ?? "", email: supplier.email ?? "", due: Number(supplier.due) });
     setOpen(true);
+  };
+
+  const startPayment = (supplier: Supplier) => {
+    setPaySupplier(supplier);
+    setPayAmount(Number(supplier.due));
+    setPayDate(todayInputValue());
+    setPayOpen(true);
   };
 
   const filteredRows = rows.filter((supplier) => {
@@ -97,6 +141,26 @@ function Suppliers() {
           </DialogContent>
         </Dialog>
       } />
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Pay Supplier</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <p className="font-medium">{paySupplier?.name}</p>
+              <p className="text-sm text-muted-foreground">Current payable: Rs.{Number(paySupplier?.due ?? 0).toLocaleString()}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Date</Label>
+              <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount (Rs.)</Label>
+              <Input type="text" inputMode="decimal" min={1} max={Number(paySupplier?.due ?? 0)} value={payAmount} onChange={(e) => setPayAmount(+e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter><Button onClick={() => pay.mutate()} disabled={pay.isPending}>Pay</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Card className="p-3 sm:p-4 mb-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -116,6 +180,9 @@ function Suppliers() {
                 <TableCell className={`text-right ${Number(s.due) > 0 ? "text-warning font-semibold" : ""}`}>Rs.{Number(s.due).toLocaleString()}</TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="outline" disabled={Number(s.due) <= 0} onClick={() => startPayment(s)}>
+                      <HandCoins className="h-4 w-4 mr-1" />Pay
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => startEdit(s)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => del.mutate(s.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>

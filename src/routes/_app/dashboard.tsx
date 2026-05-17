@@ -19,12 +19,14 @@ function Dashboard() {
   const { data: products = [] } = useQuery({ queryKey: ["products", shop?.shop_id], enabled, queryFn: async () => (await supabase.from("products").select("*")).data ?? [] });
   const { data: sales = [] } = useQuery({ queryKey: ["sales", shop?.shop_id], enabled, queryFn: async () => (await supabase.from("sales").select("*").order("date", { ascending: false })).data ?? [] });
   const { data: customers = [] } = useQuery({ queryKey: ["customers", shop?.shop_id], enabled, queryFn: async () => (await supabase.from("customers").select("*")).data ?? [] });
+  const { data: suppliers = [] } = useQuery({ queryKey: ["suppliers", shop?.shop_id], enabled, queryFn: async () => (await supabase.from("suppliers").select("*")).data ?? [] });
 
   const today = new Date().toISOString().slice(0, 10);
   const todaySales = sales.filter((s) => s.date === today).reduce((a, s) => a + Number(s.total), 0);
   const stockValue = products.reduce((a, p) => a + Number(p.selling_price) * Number(p.stock), 0);
   const expiringSoon = products.filter((p) => p.expiry && (new Date(p.expiry).getTime() - Date.now()) / 86400000 < 60).length;
-  const pending = customers.reduce((a, c) => a + Number(c.due), 0);
+  const customerPending = customers.reduce((a, c) => a + Number(c.due), 0);
+  const supplierPayable = suppliers.reduce((a, s) => a + Number(s.due), 0);
 
   // Build last 7 days chart
   const days = Array.from({ length: 7 }).map((_, i) => {
@@ -37,14 +39,15 @@ function Dashboard() {
     { label: "Today's Sales", value: `₹${todaySales.toLocaleString()}`, icon: IndianRupee },
     { label: "Stock Value", value: `₹${Math.round(stockValue).toLocaleString()}`, icon: Package },
     { label: "Expiring Soon", value: expiringSoon, icon: AlertTriangle },
-    { label: "Pending Payments", value: `₹${pending.toLocaleString()}`, icon: TrendingUp },
+    { label: "Customer Pending", value: `₹${customerPending.toLocaleString()}`, icon: TrendingUp },
+    { label: "Supplier Payable", value: `₹${supplierPayable.toLocaleString()}`, icon: IndianRupee },
   ];
 
   return (
     <div>
       <PageHeader title="Dashboard" description={`Welcome to ${(shop as any)?.shops?.name ?? "your shop"}`} actions={<Button asChild><Link to="/sales/new">New Invoice</Link></Button>} />
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4">
         {stats.map((s) => (
           <Card key={s.label} className="p-3 sm:p-5">
             <div className="flex items-start justify-between gap-2">

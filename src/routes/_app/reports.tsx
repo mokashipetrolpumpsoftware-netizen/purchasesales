@@ -26,6 +26,7 @@ type Purchase = Tables<"purchases">;
 type PurchaseItem = Tables<"purchase_items">;
 type LedgerEntry = Tables<"ledger_entries">;
 type Customer = Tables<"customers">;
+type Supplier = Tables<"suppliers">;
 type Report = {
   id: string;
   title: string;
@@ -51,6 +52,7 @@ function Reports() {
   const { data: purchaseItems = [] } = useQuery({ queryKey: ["purchase_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<PurchaseItem>("purchase_items") });
   const { data: ledgerEntries = [] } = useQuery({ queryKey: ["ledger", shop?.shop_id], enabled, queryFn: async () => fetchRows<LedgerEntry>("ledger_entries", "date", false) });
   const { data: customers = [] } = useQuery({ queryKey: ["customers", shop?.shop_id], enabled, queryFn: async () => fetchRows<Customer>("customers") });
+  const { data: suppliers = [] } = useQuery({ queryKey: ["suppliers", shop?.shop_id], enabled, queryFn: async () => fetchRows<Supplier>("suppliers") });
 
   const filteredSales = sales.filter((sale) => isWithinPeriod(sale.date, fromDate, toDate));
   const filteredPurchases = purchases.filter((purchase) => isWithinPeriod(purchase.date, fromDate, toDate));
@@ -75,10 +77,11 @@ function Reports() {
     purchaseItems: filteredPurchaseItems,
     ledgerEntries: filteredLedger,
     customers,
+    suppliers,
     saleMap,
     purchaseMap,
     productMap,
-  }), [customers, filteredLedger, filteredPurchaseItems, filteredPurchases, filteredSaleItems, filteredSales, products, purchaseMap, saleMap, productMap]);
+  }), [customers, filteredLedger, filteredPurchaseItems, filteredPurchases, filteredSaleItems, filteredSales, products, purchaseMap, saleMap, productMap, suppliers]);
 
   const totalSales = filteredSales.reduce((sum, sale) => sum + Number(sale.total), 0);
   const totalPurchases = filteredPurchases.reduce((sum, purchase) => sum + Number(purchase.total), 0);
@@ -232,6 +235,7 @@ function buildReports(data: {
   purchaseItems: PurchaseItem[];
   ledgerEntries: LedgerEntry[];
   customers: Customer[];
+  suppliers: Supplier[];
   saleMap: Map<string, Sale>;
   purchaseMap: Map<string, Purchase>;
   productMap: Map<string, Product>;
@@ -248,10 +252,13 @@ function buildReports(data: {
   const purchaseVsConsumptionRows = purchaseVsConsumption(data);
   const dailySummaryRows = dailySummary(data);
   const pendingRows = data.customers.filter((c) => Number(c.due) > 0).map((c) => [c.name, c.phone ?? "-", `Rs.${money(Number(c.due))}`]);
+  const supplierPendingRows = data.suppliers.filter((s) => Number(s.due) > 0).map((s) => [s.name, s.phone ?? "-", `Rs.${money(Number(s.due))}`]);
   const totalSales = data.sales.reduce((sum, sale) => sum + Number(sale.total), 0);
   const totalPurchases = data.purchases.reduce((sum, purchase) => sum + Number(purchase.total), 0);
   const totalStockValue = data.products.reduce((sum, product) => sum + Number(product.stock) * Number(product.purchase_price), 0);
   const totalProfit = itemProfitRows.reduce((sum, row) => sum + numberFromMoney(String(row[5])), 0);
+  const customerPending = data.customers.reduce((sum, c) => sum + Number(c.due), 0);
+  const supplierPayable = data.suppliers.reduce((sum, s) => sum + Number(s.due), 0);
 
   return [
     report("current-stock", "Current Stock", "Live stock available product-wise.", "Inventory", ["Product", "Category", "Batch", "Expiry", "Stock", "Unit", "Cost Value"], currentStockRows, [
@@ -296,8 +303,8 @@ function buildReports(data: {
     report("low-stock-alerts", "Low Stock Alerts", "Action report for reorder planning.", "Alerts", ["Product", "Category", "Stock", "Unit", "Batch", "Expiry"], lowStockRows, [
       ["Alerts", lowStockRows.length], ["Threshold", "10"], ["PDF", "Ready"], ["WhatsApp Share", "Ready"],
     ]),
-    report("profitability", "Profitability", "Sales, purchase and estimated gross profit for the selected period.", "Profit", ["Metric", "Amount"], [["Sales", `Rs.${money(totalSales)}`], ["Purchases", `Rs.${money(totalPurchases)}`], ["Estimated Item Profit", `Rs.${money(totalProfit)}`], ["Customer Pending", `Rs.${money(data.customers.reduce((sum, c) => sum + Number(c.due), 0))}`]], [
-      ["Sales", `Rs.${money(totalSales)}`], ["Purchases", `Rs.${money(totalPurchases)}`], ["Profit", `Rs.${money(totalProfit)}`], ["Pending", `Rs.${money(data.customers.reduce((sum, c) => sum + Number(c.due), 0))}`],
+    report("profitability", "Profitability", "Sales, purchase and estimated gross profit for the selected period.", "Profit", ["Metric", "Amount"], [["Sales", `Rs.${money(totalSales)}`], ["Purchases", `Rs.${money(totalPurchases)}`], ["Estimated Item Profit", `Rs.${money(totalProfit)}`], ["Customer Pending", `Rs.${money(customerPending)}`], ["Supplier Payable", `Rs.${money(supplierPayable)}`]], [
+      ["Sales", `Rs.${money(totalSales)}`], ["Purchases", `Rs.${money(totalPurchases)}`], ["Profit", `Rs.${money(totalProfit)}`], ["Pending", `Rs.${money(customerPending)}`],
     ]),
     report("employee-audit", "Employee Audit Logs", "Requires user activity/audit log table.", "Operations", ["Date", "Employee", "Action", "Reference", "Amount"], placeholderRows(["Employee audit log table is not configured yet."]), [
       ["Logs", "Not configured"], ["Users", "-"], ["Actions", "-"], ["Status", "Needs audit table"],
@@ -309,7 +316,10 @@ function buildReports(data: {
     //   ["PDF", "Ready"], ["Android Share", "Ready"], ["Web Share", "Ready"], ["Auto WhatsApp", "Needs API"],
     // ]),
     report("customer-pending", "Customer Pending Collection", "Customer-wise udhari amount pending for collection.", "Ledger", ["Customer", "Phone", "Pending Amount"], pendingRows, [
-      ["Customers", pendingRows.length], ["Pending", `Rs.${money(data.customers.reduce((sum, c) => sum + Number(c.due), 0))}`], ["Report", "Ready"], ["Share", "Ready"],
+      ["Customers", pendingRows.length], ["Pending", `Rs.${money(customerPending)}`], ["Report", "Ready"], ["Share", "Ready"],
+    ]),
+    report("supplier-payable", "Supplier Payable", "Supplier-wise udhari amount payable.", "Ledger", ["Supplier", "Phone", "Payable Amount"], supplierPendingRows, [
+      ["Suppliers", supplierPendingRows.length], ["Payable", `Rs.${money(supplierPayable)}`], ["Report", "Ready"], ["Share", "Ready"],
     ]),
   ];
 }
