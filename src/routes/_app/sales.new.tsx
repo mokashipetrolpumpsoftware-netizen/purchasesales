@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
-type Item = { productId: string; qty: number };
+type Item = { productId: string; qty: number; price: number };
 type PaymentType = "cash" | "udhari";
 
 function NewSale() {
@@ -45,7 +45,8 @@ function NewSale() {
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const lines = items.map((i) => {
     const p = products.find((x) => x.id === i.productId);
-    return { ...(p as any), qty: i.qty, total: p ? Number(p.selling_price) * i.qty : 0 };
+    const price = Number.isFinite(i.price) && i.price > 0 ? i.price : Number(p?.selling_price ?? 0);
+    return { ...(p as any), qty: i.qty, price, total: p ? price * i.qty : 0 };
   });
   const subtotal = lines.reduce((s, l) => s + l.total, 0);
   const discAmt = (subtotal * discount) / 100;
@@ -72,7 +73,7 @@ function NewSale() {
         status,
       }).select().single();
       if (error) throw error;
-      const itemRows = lines.map((l) => ({ sale_id: sale.id, product_id: l.id, product_name: l.name, qty: l.qty, price: Number(l.selling_price), amount: l.total }));
+      const itemRows = lines.map((l) => ({ sale_id: sale.id, product_id: l.id, product_name: l.name, qty: l.qty, price: l.price, amount: l.total }));
       const { error: itemsError } = await supabase.from("sale_items").insert(itemRows);
       if (itemsError) throw itemsError;
       if (paymentType === "udhari" && selectedCustomer) {
@@ -102,7 +103,7 @@ function NewSale() {
         if (stockError) throw stockError;
       }
       const dateTime = new Date().toLocaleString("en-IN");
-      const itemDetails = lines.map((l) => `${l.name} x ${l.qty} = Rs.${l.total.toLocaleString()}`).join("\n");
+      const itemDetails = lines.map((l) => `${l.name} x ${l.qty} @ Rs.${l.price.toLocaleString()} = Rs.${l.total.toLocaleString()}`).join("\n");
       const message = [
         `Hello ${selectedCustomer?.name ?? "Customer"},`,
         `Thank you for shopping at ${shopName}.`,
@@ -165,27 +166,34 @@ function NewSale() {
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <h3 className="font-semibold">Items</h3>
-            <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={!products.length} onClick={() => setItems([...items, { productId: products[0].id, qty: 1 }])}>
+            <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={!products.length} onClick={() => setItems([...items, { productId: products[0].id, qty: 1, price: Number(products[0].selling_price) }])}>
               <Plus className="h-4 w-4 mr-1" />Add Item
             </Button>
           </div>
           <Table>
             <TableHeader><TableRow>
               <TableHead>Product</TableHead><TableHead>Stock</TableHead>
-              <TableHead>Qty</TableHead><TableHead className="text-right">Total</TableHead><TableHead></TableHead>
+              <TableHead>Qty</TableHead><TableHead>Rate</TableHead><TableHead className="text-right">Total</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {lines.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">{products.length ? "Click Add Item" : "Add products first"}</TableCell></TableRow>}
+              {lines.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">{products.length ? "Click Add Item" : "Add products first"}</TableCell></TableRow>}
               {lines.map((l, idx) => (
                 <TableRow key={idx}>
                   <TableCell className="min-w-[200px]">
-                    <Select value={l.id} onValueChange={(v) => { const c = [...items]; c[idx].productId = v; setItems(c); }}>
+                    <Select value={l.id} onValueChange={(v) => {
+                      const product = products.find((p) => p.id === v);
+                      const c = [...items];
+                      c[idx].productId = v;
+                      c[idx].price = Number(product?.selling_price ?? 0);
+                      setItems(c);
+                    }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} — {p.batch}</SelectItem>)}</SelectContent>
                     </Select>
                   </TableCell>
                   <TableCell><span className={Number(l.stock) < 10 ? "text-destructive" : ""}>{l.stock}</span></TableCell>
                   <TableCell><Input type="text" inputMode="decimal" className="w-24" value={l.qty} onChange={(e) => { const c = [...items]; c[idx].qty = +e.target.value || 1; setItems(c); }} /></TableCell>
+                  <TableCell><Input type="text" inputMode="decimal" className="w-28" value={l.price} onChange={(e) => { const c = [...items]; c[idx].price = +e.target.value || 0; setItems(c); }} /></TableCell>
                   <TableCell className="text-right">₹{l.total.toLocaleString()}</TableCell>
                   <TableCell><Button size="icon" variant="ghost" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button></TableCell>
                 </TableRow>
