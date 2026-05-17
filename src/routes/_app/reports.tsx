@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, FileText, RefreshCw, Share2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
@@ -49,9 +49,9 @@ function Reports() {
   const liveQueryOptions = { staleTime: 0, refetchOnMount: "always" as const, refetchOnWindowFocus: true, refetchOnReconnect: true };
   const { data: products = [] } = useQuery({ queryKey: ["products", shop?.shop_id], enabled, queryFn: async () => fetchRows<Product>("products"), ...liveQueryOptions });
   const { data: sales = [] } = useQuery({ queryKey: ["sales", shop?.shop_id], enabled, queryFn: async () => fetchRows<Sale>("sales", "date", false), ...liveQueryOptions });
-  const { data: saleItems = [] } = useQuery({ queryKey: ["sale_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<SaleItem>("sale_items"), ...liveQueryOptions });
+  const { data: saleItems = [] } = useQuery({ queryKey: ["sale_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<SaleItem>("sale_items", null), ...liveQueryOptions });
   const { data: purchases = [] } = useQuery({ queryKey: ["purchases", shop?.shop_id], enabled, queryFn: async () => fetchRows<Purchase>("purchases", "date", false), ...liveQueryOptions });
-  const { data: purchaseItems = [] } = useQuery({ queryKey: ["purchase_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<PurchaseItem>("purchase_items"), ...liveQueryOptions });
+  const { data: purchaseItems = [] } = useQuery({ queryKey: ["purchase_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<PurchaseItem>("purchase_items", null), ...liveQueryOptions });
   const { data: ledgerEntries = [] } = useQuery({ queryKey: ["ledger", shop?.shop_id], enabled, queryFn: async () => fetchRows<LedgerEntry>("ledger_entries", "date", false), ...liveQueryOptions });
   const { data: customers = [] } = useQuery({ queryKey: ["customers", shop?.shop_id], enabled, queryFn: async () => fetchRows<Customer>("customers"), ...liveQueryOptions });
   const { data: suppliers = [] } = useQuery({ queryKey: ["suppliers", shop?.shop_id], enabled, queryFn: async () => fetchRows<Supplier>("suppliers"), ...liveQueryOptions });
@@ -197,7 +197,10 @@ function Reports() {
         <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-6xl max-h-[92vh] overflow-hidden p-3 sm:p-6">
           {selected && (
             <>
-              <DialogHeader><DialogTitle>{selected.title}</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>{selected.title}</DialogTitle>
+                <DialogDescription>{selected.description}</DialogDescription>
+              </DialogHeader>
               <div className="space-y-4 overflow-hidden">
                 <p className="text-sm text-muted-foreground">Period: {periodText(fromDate, toDate)}</p>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -231,8 +234,10 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
   return <Card className="p-3 sm:p-4 min-w-0"><p className="text-xs sm:text-sm text-muted-foreground">{label}</p><p className="text-base sm:text-xl font-bold mt-1 break-words">{value}</p></Card>;
 }
 
-async function fetchRows<T>(table: string, orderBy = "created_at", ascending = true) {
-  const { data, error } = await supabase.from(table as never).select("*").order(orderBy, { ascending });
+async function fetchRows<T>(table: string, orderBy: string | null = "created_at", ascending = true) {
+  let query = supabase.from(table as never).select("*");
+  if (orderBy) query = query.order(orderBy, { ascending }) as typeof query;
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as T[];
 }
