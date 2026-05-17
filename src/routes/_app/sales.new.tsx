@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
-type Item = { productId: string; qty: number; price: number };
+type Item = { productId: string; qty: string; price: string };
 type PaymentType = "cash" | "udhari";
 
 function NewSale() {
@@ -45,8 +45,9 @@ function NewSale() {
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const lines = items.map((i) => {
     const p = products.find((x) => x.id === i.productId);
-    const price = Number.isFinite(i.price) && i.price > 0 ? i.price : Number(p?.selling_price ?? 0);
-    return { ...(p as any), qty: i.qty, price, total: p ? price * i.qty : 0 };
+    const qty = Number(i.qty) || 0;
+    const price = Number(i.price) || 0;
+    return { ...(p as any), qty, price, total: p ? price * qty : 0 };
   });
   const subtotal = lines.reduce((s, l) => s + l.total, 0);
   const discAmt = (subtotal * discount) / 100;
@@ -58,6 +59,8 @@ function NewSale() {
   const save = useMutation({
     mutationFn: async () => {
       if (!items.length) throw new Error("Add at least one item");
+      if (lines.some((line) => !line.id || line.qty <= 0)) throw new Error("Enter valid quantity");
+      if (lines.some((line) => line.price <= 0)) throw new Error("Enter valid rate");
       if (paymentType === "udhari" && !selectedCustomer) throw new Error("Select a customer for udhari sale");
       const invoice_no = `INV-${Date.now().toString().slice(-6)}`;
       const status = paymentType === "cash" ? "Paid" : "Pending";
@@ -166,7 +169,7 @@ function NewSale() {
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <h3 className="font-semibold">Items</h3>
-            <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={!products.length} onClick={() => setItems([...items, { productId: products[0].id, qty: 1, price: Number(products[0].selling_price) }])}>
+            <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={!products.length} onClick={() => setItems([...items, { productId: products[0].id, qty: "1", price: String(products[0].selling_price) }])}>
               <Plus className="h-4 w-4 mr-1" />Add Item
             </Button>
           </div>
@@ -184,7 +187,7 @@ function NewSale() {
                       const product = products.find((p) => p.id === v);
                       const c = [...items];
                       c[idx].productId = v;
-                      c[idx].price = Number(product?.selling_price ?? 0);
+                      c[idx].price = String(product?.selling_price ?? "");
                       setItems(c);
                     }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -192,8 +195,8 @@ function NewSale() {
                     </Select>
                   </TableCell>
                   <TableCell><span className={Number(l.stock) < 10 ? "text-destructive" : ""}>{l.stock}</span></TableCell>
-                  <TableCell><Input type="text" inputMode="decimal" className="w-24" value={l.qty} onChange={(e) => { const c = [...items]; c[idx].qty = +e.target.value || 1; setItems(c); }} /></TableCell>
-                  <TableCell><Input type="text" inputMode="decimal" className="w-28" value={l.price} onChange={(e) => { const c = [...items]; c[idx].price = +e.target.value || 0; setItems(c); }} /></TableCell>
+                  <TableCell><Input type="text" inputMode="decimal" className="w-24" value={items[idx].qty} onChange={(e) => { const c = [...items]; c[idx].qty = e.target.value; setItems(c); }} /></TableCell>
+                  <TableCell><Input type="text" inputMode="decimal" className="w-28" value={items[idx].price} onChange={(e) => { const c = [...items]; c[idx].price = e.target.value; setItems(c); }} /></TableCell>
                   <TableCell className="text-right">₹{l.total.toLocaleString()}</TableCell>
                   <TableCell><Button size="icon" variant="ghost" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button></TableCell>
                 </TableRow>
