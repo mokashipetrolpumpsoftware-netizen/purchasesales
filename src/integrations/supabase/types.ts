@@ -396,6 +396,7 @@ export type Database = {
           is_approved: boolean
           is_enabled: boolean
           license: string | null
+          logo_url: string | null
           name: string
           owner_name: string | null
           phone: string | null
@@ -410,6 +411,7 @@ export type Database = {
           is_approved?: boolean
           is_enabled?: boolean
           license?: string | null
+          logo_url?: string | null
           name: string
           owner_name?: string | null
           phone?: string | null
@@ -424,6 +426,7 @@ export type Database = {
           is_approved?: boolean
           is_enabled?: boolean
           license?: string | null
+          logo_url?: string | null
           name?: string
           owner_name?: string | null
           phone?: string | null

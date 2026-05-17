@@ -114,7 +114,7 @@ function Sales() {
           <DialogHeader><DialogTitle>Edit Invoice</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             <div className="space-y-2"><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Total</Label><Input type="number" value={form.total} onChange={(e) => setForm({ ...form, total: +e.target.value })} /></div>
+            <div className="space-y-2"><Label>Total</Label><Input type="text" inputMode="decimal" value={form.total} onChange={(e) => setForm({ ...form, total: +e.target.value })} /></div>
             <div className="space-y-2"><Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>

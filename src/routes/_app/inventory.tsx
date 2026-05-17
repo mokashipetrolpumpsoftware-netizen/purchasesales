@@ -110,10 +110,10 @@ function Inventory() {
               </div>
               <div className="space-y-2"><Label>Batch</Label><Input value={form.batch} onChange={(e) => setForm({ ...form, batch: e.target.value })} /></div>
               <div className="space-y-2"><Label>Expiry</Label><Input type="date" value={form.expiry} onChange={(e) => setForm({ ...form, expiry: e.target.value })} /></div>
-              <div className="space-y-2"><Label>MRP (Rs.)</Label><Input type="number" value={form.mrp} onChange={(e) => setForm({ ...form, mrp: +e.target.value })} /></div>
-              <div className="space-y-2"><Label>Purchase Price (Rs.)</Label><Input type="number" value={form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: +e.target.value })} /></div>
-              <div className="space-y-2"><Label>Selling Price (Rs.)</Label><Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: +e.target.value })} /></div>
-              <div className="space-y-2"><Label>Stock</Label><Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: +e.target.value })} /></div>
+              <div className="space-y-2"><Label>MRP (Rs.)</Label><Input type="text" inputMode="decimal" value={form.mrp} onChange={(e) => setForm({ ...form, mrp: +e.target.value })} /></div>
+              <div className="space-y-2"><Label>Purchase Price (Rs.)</Label><Input type="text" inputMode="decimal"  value={form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: +e.target.value })} /></div>
+              <div className="space-y-2"><Label>Selling Price (Rs.)</Label><Input type="text" inputMode="decimal" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: +e.target.value })} /></div>
+              <div className="space-y-2"><Label>Stock</Label><Input type="text" inputMode="decimal" value={form.stock} onChange={(e) => setForm({ ...form, stock: +e.target.value })} /></div>
               <div className="space-y-2"><Label>Unit</Label><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
             </div>
             <DialogFooter><Button onClick={() => editing ? update.mutate() : create.mutate()} disabled={create.isPending || update.isPending}>Save Product</Button></DialogFooter>

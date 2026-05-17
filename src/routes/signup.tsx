@@ -89,7 +89,7 @@ function Signup() {
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div className="space-y-2"><Label>Shop Name</Label><Input required value={form.shop} onChange={set("shop")} /></div>
           <div className="space-y-2"><Label>Owner Name</Label><Input required value={form.owner} onChange={set("owner")} /></div>
-          <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={set("phone")} /></div>
+          <div className="space-y-2"><Label>Phone</Label><Input type="text" inputMode="decimal" value={form.phone} onChange={set("phone")} maxLength={10} /></div>
           <div className="space-y-2"><Label>Email</Label><Input type="email" required value={form.email} onChange={set("email")} /></div>
           <div className="space-y-2">
             <Label>Password</Label>

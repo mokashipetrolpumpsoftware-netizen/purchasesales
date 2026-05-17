@@ -185,7 +185,7 @@ function NewSale() {
                     </Select>
                   </TableCell>
                   <TableCell><span className={Number(l.stock) < 10 ? "text-destructive" : ""}>{l.stock}</span></TableCell>
-                  <TableCell><Input type="number" className="w-24" value={l.qty} onChange={(e) => { const c = [...items]; c[idx].qty = +e.target.value || 1; setItems(c); }} /></TableCell>
+                  <TableCell><Input type="text" inputMode="decimal" className="w-24" value={l.qty} onChange={(e) => { const c = [...items]; c[idx].qty = +e.target.value || 1; setItems(c); }} /></TableCell>
                   <TableCell className="text-right">₹{l.total.toLocaleString()}</TableCell>
                   <TableCell><Button size="icon" variant="ghost" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button></TableCell>
                 </TableRow>
@@ -198,8 +198,8 @@ function NewSale() {
           <h3 className="font-semibold mb-4">Bill Summary</h3>
           <div className="space-y-3">
             <div className="flex justify-between text-sm"><span>Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
-            <div className="flex items-center justify-between gap-2 text-sm"><span>Discount (%)</span><Input type="number" className="w-20 h-8" value={discount} onChange={(e) => setDiscount(+e.target.value)} /></div>
-            <div className="flex items-center justify-between gap-2 text-sm"><span>GST (%)</span><Input type="number" className="w-20 h-8" value={gst} onChange={(e) => setGst(+e.target.value)} /></div>
+            <div className="flex items-center justify-between gap-2 text-sm"><span>Discount (%)</span><Input type="text" inputMode="decimal" className="w-20 h-8" value={discount} onChange={(e) => setDiscount(+e.target.value)} /></div>
+            <div className="flex items-center justify-between gap-2 text-sm"><span>GST (%)</span><Input type="text" inputMode="decimal" className="w-20 h-8" value={gst} onChange={(e) => setGst(+e.target.value)} /></div>
             <div className="border-t pt-3 flex justify-between font-semibold text-lg"><span>Total</span><span>₹{total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
             <Button className="w-full" onClick={() => save.mutate()} disabled={save.isPending}>Save Invoice</Button>
           </div>

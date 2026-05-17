@@ -153,9 +153,9 @@ function Customers() {
             <DialogHeader><DialogTitle>{editing ? "Edit Customer" : "Add Customer"}</DialogTitle></DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} maxLength={10} /></div>
               <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Due (Rs.)</Label><Input type="number" value={form.due} onChange={(e) => setForm({ ...form, due: +e.target.value })} /></div>
+              <div className="space-y-2"><Label>Due (Rs.)</Label><Input type="text" inputMode="decimal" value={form.due} onChange={(e) => setForm({ ...form, due: +e.target.value })} /></div>
             </div>
             <DialogFooter><Button onClick={() => editing ? update.mutate() : create.mutate()} disabled={create.isPending || update.isPending}>Save</Button></DialogFooter>
           </DialogContent>
@@ -175,7 +175,7 @@ function Customers() {
               <Input type="date" value={collectDate} onChange={(e) => setCollectDate(e.target.value)} />
             </div>
               <Label>Amount (Rs.)</Label>
-              <Input type="number" min={1} max={Number(collectCustomer?.due ?? 0)} value={collectAmount} onChange={(e) => setCollectAmount(+e.target.value)} />
+              <Input type="text" inputMode="decimal" min={1} max={Number(collectCustomer?.due ?? 0)} value={collectAmount} onChange={(e) => setCollectAmount(+e.target.value)} />
             </div>
 
           </div>

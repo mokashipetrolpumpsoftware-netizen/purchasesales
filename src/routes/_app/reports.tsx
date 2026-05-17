@@ -305,9 +305,9 @@ function buildReports(data: {
     report("daily-dashboard", "Daily Summary Dashboard", "Day-wise sales, purchase, credit and collection summary.", "Dashboard", ["Date", "Sales", "Purchases", "Customer Debit", "Customer Credit"], dailySummaryRows, [
       ["Days", dailySummaryRows.length], ["Sales", `Rs.${money(totalSales)}`], ["Purchases", `Rs.${money(totalPurchases)}`], ["Ledger Entries", data.ledgerEntries.length],
     ]),
-    report("whatsapp-pdf", "WhatsApp/PDF Automated Reports", "All reports can be downloaded or shared. Fully automatic scheduled WhatsApp needs a backend/API.", "Automation", ["Report", "Download", "Share", "Automation"], [["All Reports", "Ready", "Ready", "Manual share ready"], ["Scheduled WhatsApp", "Needs backend", "Needs WhatsApp API", "Not configured"]], [
-      ["PDF", "Ready"], ["Android Share", "Ready"], ["Web Share", "Ready"], ["Auto WhatsApp", "Needs API"],
-    ]),
+    // report("whatsapp-pdf", "WhatsApp/PDF Automated Reports", "All reports can be downloaded or shared. Fully automatic scheduled WhatsApp needs a backend/API.", "Automation", ["Report", "Download", "Share", "Automation"], [["All Reports", "Ready", "Ready", "Manual share ready"], ["Scheduled WhatsApp", "Needs backend", "Needs WhatsApp API", "Not configured"]], [
+    //   ["PDF", "Ready"], ["Android Share", "Ready"], ["Web Share", "Ready"], ["Auto WhatsApp", "Needs API"],
+    // ]),
     report("customer-pending", "Customer Pending Collection", "Customer-wise udhari amount pending for collection.", "Ledger", ["Customer", "Phone", "Pending Amount"], pendingRows, [
       ["Customers", pendingRows.length], ["Pending", `Rs.${money(data.customers.reduce((sum, c) => sum + Number(c.due), 0))}`], ["Report", "Ready"], ["Share", "Ready"],
     ]),

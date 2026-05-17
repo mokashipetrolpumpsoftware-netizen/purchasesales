@@ -125,8 +125,8 @@ function Purchases() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Batch</Label><Input value={form.batch} onChange={(e) => setForm({ ...form, batch: e.target.value })} /></div>
                 <div className="space-y-2"><Label>Expiry</Label><Input type="date" value={form.expiry} onChange={(e) => setForm({ ...form, expiry: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Quantity</Label><Input type="number" value={form.qty} onChange={(e) => setForm({ ...form, qty: +e.target.value })} /></div>
-                <div className="space-y-2"><Label>Cost Price</Label><Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: +e.target.value })} /></div>
+                <div className="space-y-2"><Label>Quantity</Label><Input type="text" inputMode="decimal" value={form.qty} onChange={(e) => setForm({ ...form, qty: +e.target.value })} /></div>
+                <div className="space-y-2"><Label>Cost Price</Label><Input type="text" inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: +e.target.value })} /></div>
               </div>
               <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md">Stock will be auto-updated upon save</div>
             </div>
@@ -150,7 +150,7 @@ function Purchases() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2"><Label>Total</Label><Input type="number" value={editForm.total} onChange={(e) => setEditForm({ ...editForm, total: +e.target.value })} /></div>
+            <div className="space-y-2"><Label>Total</Label><Input type="text" inputMode="decimal" value={editForm.total} onChange={(e) => setEditForm({ ...editForm, total: +e.target.value })} /></div>
             <div className="space-y-2"><Label>Status</Label><Input value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} /></div>
           </div>
           <DialogFooter><Button onClick={() => update.mutate()} disabled={update.isPending}>Save</Button></DialogFooter>
