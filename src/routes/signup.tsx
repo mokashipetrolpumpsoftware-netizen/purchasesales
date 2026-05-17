@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { CheckCircle2, Clock, Eye, EyeOff, Leaf, Mail, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AppCopyright } from "@/components/AppCopyright";
 
 export const Route = createFileRoute("/signup")({ component: Signup });
 
@@ -39,7 +40,8 @@ function Signup() {
 
   if (registeredShop) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-muted/40 p-4">
+        <AppCopyright variant="contact" className="w-full max-w-md" />
         <Card className="w-full max-w-md overflow-hidden">
           <div className="bg-green-600 px-6 py-8 text-center text-white">
             <CheckCircle2 className="mx-auto h-12 w-12" />
@@ -67,12 +69,14 @@ function Signup() {
             <p className="text-center text-xs text-muted-foreground">You will be able to login after admin approval</p>
           </div>
         </Card>
+        <AppCopyright variant="copyright" className="w-full max-w-md" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-muted/40">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-6 bg-muted/40">
+      <AppCopyright variant="contact" className="w-full max-w-md" />
       <Card className="w-full max-w-md p-5 sm:p-8">
         <div className="flex items-center gap-2 mb-6">
           <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
@@ -103,6 +107,7 @@ function Signup() {
           Already have a shop? <Link to="/login" className="text-primary font-medium">Sign in</Link>
         </p>
       </Card>
+      <AppCopyright variant="copyright" className="w-full max-w-md" />
     </div>
   );
 }

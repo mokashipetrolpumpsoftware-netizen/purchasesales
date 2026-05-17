@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { AppCopyright } from "@/components/AppCopyright";
 
 export function AppLayout({ children }: { children?: React.ReactNode }) {
   const { user, signOut } = useAuth();
@@ -58,7 +59,10 @@ export function AppLayout({ children }: { children?: React.ReactNode }) {
               </Button>
             </div>
           </header>
-          <main className="flex-1 min-w-0 overflow-auto p-3 sm:p-4 lg:p-6">{children ?? <Outlet />}</main>
+          <main className="flex-1 min-w-0 overflow-auto p-3 sm:p-4 lg:p-6">
+            {children ?? <Outlet />}
+            <AppCopyright variant="copyright" className="mt-8 border-t pt-4" />
+          </main>
         </div>
       </div>
     </SidebarProvider>

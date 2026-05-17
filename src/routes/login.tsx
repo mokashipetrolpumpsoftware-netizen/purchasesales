@@ -8,9 +8,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Eye, EyeOff, Leaf } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
+import { AppCopyright } from "@/components/AppCopyright";
 export const Route = createFileRoute("/login")({ component: Login });
-
 function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
@@ -20,7 +19,6 @@ function Login() {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -29,7 +27,6 @@ function Login() {
     if (error) return toast.error(error.message);
     nav({ to: email.trim().toLowerCase() === "admin@purchasesales.com" ? "/admin" : "/dashboard" });
   }
-
   async function onGoogle() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -37,7 +34,6 @@ function Login() {
     });
     if (error) toast.error(error.message);
   }
-
   async function onForgotPassword() {
     const targetEmail = resetEmail.trim() || email.trim();
     if (!targetEmail) return toast.error("Enter your email first");
@@ -50,7 +46,6 @@ function Login() {
     toast.success("Password reset link sent to your email");
     setResetOpen(false);
   }
-
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
@@ -62,9 +57,10 @@ function Login() {
           <h2 className="text-4xl font-bold leading-tight">Manage your pharmacy & agro store with confidence.</h2>
           <p className="mt-4 text-primary-foreground/80 text-lg">Multi-tenant inventory, billing, expiry tracking and reports.</p>
         </div>
-        <p className="text-sm text-primary-foreground/70">© 2026 PharmaAgro Inc.</p>
+        <AppCopyright variant="copyright" className="text-primary-foreground/80" />
       </div>
-      <div className="flex items-center justify-center p-6">
+      <div className="flex flex-col items-center justify-center gap-6 p-6">
+        <AppCopyright variant="contact" className="w-full max-w-md lg:hidden" />
         <Card className="w-full max-w-md p-5 sm:p-8">
           <h1 className="text-2xl font-bold">Welcome back</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to your shop dashboard</p>
@@ -95,6 +91,7 @@ function Login() {
             New shop? <Link to="/signup" className="text-primary font-medium">Create one</Link>
           </p>
         </Card>
+        <AppCopyright variant="copyright" className="w-full max-w-md lg:hidden" />
       </div>
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent>

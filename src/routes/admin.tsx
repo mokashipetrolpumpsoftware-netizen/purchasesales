@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { AppCopyright } from "@/components/AppCopyright";
 
 export const Route = createFileRoute("/admin")({ component: AdminConsole });
 
@@ -74,6 +75,7 @@ function AdminConsole() {
           <h1 className="mt-4 text-xl font-semibold">Admin access only</h1>
           <p className="mt-2 text-sm text-muted-foreground">Please login with the platform admin account.</p>
           <Button className="mt-5 w-full" onClick={() => nav({ to: "/login" })}>Go to Login</Button>
+          <AppCopyright variant="copyright" className="mt-6" />
         </Card>
       </div>
     );
@@ -155,6 +157,7 @@ function AdminConsole() {
             </TableBody>
           </Table>
         </Card>
+        <AppCopyright variant="copyright" className="pt-2" />
       </div>
     </div>
   );
