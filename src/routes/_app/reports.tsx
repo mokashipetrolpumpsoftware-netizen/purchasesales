@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, FileText, Share2 } from "lucide-react";
+import { Download, FileText, RefreshCw, Share2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { useShop } from "@/hooks/useShop";
@@ -39,20 +39,22 @@ type Report = {
 
 function Reports() {
   const { data: shop } = useShop();
+  const queryClient = useQueryClient();
   const defaultPeriod = useMemo(() => getDefaultPeriod(), []);
   const [fromDate, setFromDate] = useState(defaultPeriod.from);
   const [toDate, setToDate] = useState(defaultPeriod.to);
   const [selected, setSelected] = useState<Report | null>(null);
 
   const enabled = !!shop?.shop_id;
-  const { data: products = [] } = useQuery({ queryKey: ["products", shop?.shop_id], enabled, queryFn: async () => fetchRows<Product>("products") });
-  const { data: sales = [] } = useQuery({ queryKey: ["sales", shop?.shop_id], enabled, queryFn: async () => fetchRows<Sale>("sales", "date", false) });
-  const { data: saleItems = [] } = useQuery({ queryKey: ["sale_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<SaleItem>("sale_items") });
-  const { data: purchases = [] } = useQuery({ queryKey: ["purchases", shop?.shop_id], enabled, queryFn: async () => fetchRows<Purchase>("purchases", "date", false) });
-  const { data: purchaseItems = [] } = useQuery({ queryKey: ["purchase_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<PurchaseItem>("purchase_items") });
-  const { data: ledgerEntries = [] } = useQuery({ queryKey: ["ledger", shop?.shop_id], enabled, queryFn: async () => fetchRows<LedgerEntry>("ledger_entries", "date", false) });
-  const { data: customers = [] } = useQuery({ queryKey: ["customers", shop?.shop_id], enabled, queryFn: async () => fetchRows<Customer>("customers") });
-  const { data: suppliers = [] } = useQuery({ queryKey: ["suppliers", shop?.shop_id], enabled, queryFn: async () => fetchRows<Supplier>("suppliers") });
+  const liveQueryOptions = { staleTime: 0, refetchOnMount: "always" as const, refetchOnWindowFocus: true, refetchOnReconnect: true };
+  const { data: products = [] } = useQuery({ queryKey: ["products", shop?.shop_id], enabled, queryFn: async () => fetchRows<Product>("products"), ...liveQueryOptions });
+  const { data: sales = [] } = useQuery({ queryKey: ["sales", shop?.shop_id], enabled, queryFn: async () => fetchRows<Sale>("sales", "date", false), ...liveQueryOptions });
+  const { data: saleItems = [] } = useQuery({ queryKey: ["sale_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<SaleItem>("sale_items"), ...liveQueryOptions });
+  const { data: purchases = [] } = useQuery({ queryKey: ["purchases", shop?.shop_id], enabled, queryFn: async () => fetchRows<Purchase>("purchases", "date", false), ...liveQueryOptions });
+  const { data: purchaseItems = [] } = useQuery({ queryKey: ["purchase_items", shop?.shop_id], enabled, queryFn: async () => fetchRows<PurchaseItem>("purchase_items"), ...liveQueryOptions });
+  const { data: ledgerEntries = [] } = useQuery({ queryKey: ["ledger", shop?.shop_id], enabled, queryFn: async () => fetchRows<LedgerEntry>("ledger_entries", "date", false), ...liveQueryOptions });
+  const { data: customers = [] } = useQuery({ queryKey: ["customers", shop?.shop_id], enabled, queryFn: async () => fetchRows<Customer>("customers"), ...liveQueryOptions });
+  const { data: suppliers = [] } = useQuery({ queryKey: ["suppliers", shop?.shop_id], enabled, queryFn: async () => fetchRows<Supplier>("suppliers"), ...liveQueryOptions });
 
   const filteredSales = sales.filter((sale) => isWithinPeriod(sale.date, fromDate, toDate));
   const filteredPurchases = purchases.filter((purchase) => isWithinPeriod(purchase.date, fromDate, toDate));
@@ -127,7 +129,15 @@ function Reports() {
 
   return (
     <div>
-      <PageHeader title="Reports" description="Inventory, sales, purchase, profit and operational PDF reports" />
+      <PageHeader
+        title="Reports"
+        description="Inventory, sales, purchase, profit and operational PDF reports"
+        actions={
+          <Button variant="outline" onClick={() => queryClient.invalidateQueries()}>
+            <RefreshCw className="h-4 w-4 mr-2" />Refresh Data
+          </Button>
+        }
+      />
 
       <Card className="p-3 sm:p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 md:gap-4 items-end">
@@ -240,17 +250,59 @@ function buildReports(data: {
   purchaseMap: Map<string, Purchase>;
   productMap: Map<string, Product>;
 }): Report[] {
-  const currentStockRows = data.products.map((p) => [p.name, p.category, p.batch ?? "-", p.expiry ?? "-", Number(p.stock), p.unit ?? "-", `Rs.${money(Number(p.purchase_price) * Number(p.stock))}`]);
-  const lowStockRows = data.products.filter((p) => Number(p.stock) <= 10).map((p) => [p.name, p.category, Number(p.stock), p.unit ?? "-", p.batch ?? "-", p.expiry ?? "-"]);
+  const currentStockRows = data.products.map((p) => [
+    p.name,
+    p.category,
+    p.batch ?? "-",
+    p.expiry ?? "-",
+    Number(p.stock),
+    p.unit ?? "-",
+    `Rs.${money(Number(p.purchase_price))}`,
+    `Rs.${money(Number(p.selling_price))}`,
+    `Rs.${money(Number(p.purchase_price) * Number(p.stock))}`,
+    `Rs.${money(Number(p.selling_price) * Number(p.stock))}`,
+    stockStatus(p),
+  ]);
+  const lowStockRows = data.products.filter((p) => Number(p.stock) <= 10).map((p) => [
+    p.name,
+    p.category,
+    Number(p.stock),
+    p.unit ?? "-",
+    p.batch ?? "-",
+    p.expiry ?? "-",
+    `Rs.${money(Number(p.purchase_price) * Number(p.stock))}`,
+    Number(p.stock) <= 0 ? "Out of stock" : "Reorder",
+  ]);
   const expiringRows = data.products.filter((p) => isExpiredOrExpiring(p.expiry)).map((p) => [p.name, p.category, p.batch ?? "-", p.expiry ?? "-", Number(p.stock), expiryStatus(p.expiry)]);
   const stockLedgerRows = stockLedger(data);
   const stockInOutRows = productMovement(data);
-  const salesSummaryRows = data.sales.map((s) => [s.date, s.invoice_no, s.customer_name ?? "Walk-in", s.status, `Rs.${money(Number(s.total))}`]);
-  const purchaseSummaryRows = data.purchases.map((p) => [p.date, p.bill_no, p.supplier_name ?? "-", p.status, `Rs.${money(Number(p.total))}`]);
+  const salesSummaryRows = data.sales.map((s) => [
+    s.date,
+    s.invoice_no,
+    s.customer_name ?? "Walk-in",
+    saleItemCount(data, s.id),
+    `Rs.${money(Number(s.subtotal))}`,
+    `Rs.${money(Number(s.discount))}`,
+    `Rs.${money(Number(s.tax))}`,
+    `Rs.${money(Number(s.total))}`,
+    normalizePaymentStatus(s.status),
+  ]);
+  const salesDetailRows = saleDetail(data);
+  const purchaseSummaryRows = data.purchases.map((p) => [
+    p.date,
+    p.bill_no,
+    p.supplier_name ?? "-",
+    purchaseItemCount(data, p.id),
+    `Rs.${money(Number(p.total))}`,
+    normalizePaymentStatus(p.status),
+    normalizePaymentStatus(p.status) === "Pending" ? `Rs.${money(Number(p.total))}` : "Rs.0.00",
+  ]);
+  const purchaseDetailRows = purchaseDetail(data);
   const valuationRows = data.products.map((p) => [p.name, Number(p.stock), `Rs.${money(Number(p.purchase_price))}`, `Rs.${money(Number(p.selling_price))}`, `Rs.${money(Number(p.stock) * Number(p.purchase_price))}`, `Rs.${money(Number(p.stock) * Number(p.selling_price))}`]);
   const itemProfitRows = itemProfit(data);
   const purchaseVsConsumptionRows = purchaseVsConsumption(data);
   const dailySummaryRows = dailySummary(data);
+  const financialLedgerRows = financialLedger(data);
   const pendingRows = data.customers.filter((c) => Number(c.due) > 0).map((c) => [c.name, c.phone ?? "-", `Rs.${money(Number(c.due))}`]);
   const supplierPendingRows = data.suppliers.filter((s) => Number(s.due) > 0).map((s) => [s.name, s.phone ?? "-", `Rs.${money(Number(s.due))}`]);
   const totalSales = data.sales.reduce((sum, sale) => sum + Number(sale.total), 0);
@@ -261,7 +313,7 @@ function buildReports(data: {
   const supplierPayable = data.suppliers.reduce((sum, s) => sum + Number(s.due), 0);
 
   return [
-    report("current-stock", "Current Stock", "Live stock available product-wise.", "Inventory", ["Product", "Category", "Batch", "Expiry", "Stock", "Unit", "Cost Value"], currentStockRows, [
+    report("current-stock", "Current Stock", "Live stock available product-wise with batch, expiry, cost and selling value.", "Inventory", ["Product", "Category", "Batch", "Expiry", "Stock", "Unit", "Cost Price", "Sale Price", "Cost Value", "Selling Value", "Status"], currentStockRows, [
       ["Items", data.products.length], ["Total Stock Value", `Rs.${money(totalStockValue)}`], ["Low Stock", lowStockRows.length], ["Expiry Alerts", expiringRows.length],
     ]),
     report("stock-ledger", "Stock Ledger", "Product-wise stock in and stock out movements.", "Inventory", ["Date", "Product", "Type", "Ref", "Qty In", "Qty Out", "Amount"], stockLedgerRows, [
@@ -270,14 +322,20 @@ function buildReports(data: {
     report("stock-in-out", "Stock In/Out", "Combined movement summary for each item.", "Inventory", ["Product", "Purchased Qty", "Sold Qty", "Current Stock", "Unit"], stockInOutRows, [
       ["Items", stockInOutRows.length], ["Total In", sumColumn(stockInOutRows, 1)], ["Total Out", sumColumn(stockInOutRows, 2)], ["Current Stock", sumColumn(stockInOutRows, 3)],
     ]),
-    report("low-stock", "Low Stock", "Items at or below 10 quantity.", "Alerts", ["Product", "Category", "Stock", "Unit", "Batch", "Expiry"], lowStockRows, [
+    report("low-stock", "Low Stock", "Items at or below 10 quantity with reorder action.", "Alerts", ["Product", "Category", "Stock", "Unit", "Batch", "Expiry", "Stock Value", "Action"], lowStockRows, [
       ["Low Stock Items", lowStockRows.length], ["Threshold", "10"], ["Action", "Reorder"], ["Report", "Active"],
     ]),
-    report("purchase-summary", "Purchase Summary", "Purchases recorded in the selected period.", "Purchase", ["Date", "Bill No", "Supplier", "Status", "Total"], purchaseSummaryRows, [
-      ["Bills", data.purchases.length], ["Amount", `Rs.${money(totalPurchases)}`], ["Suppliers", uniqueCount(data.purchases.map((p) => p.supplier_name ?? "-"))], ["Average", `Rs.${money(avg(totalPurchases, data.purchases.length))}`],
+    report("purchase-summary", "Purchase Summary", "Supplier bills with item count, payment status and payable amount.", "Purchase", ["Date", "Bill No", "Supplier", "Items", "Total", "Status", "Payable"], purchaseSummaryRows, [
+      ["Bills", data.purchases.length], ["Amount", `Rs.${money(totalPurchases)}`], ["Paid Bills", data.purchases.filter((p) => normalizePaymentStatus(p.status) === "Paid").length], ["Pending Bills", data.purchases.filter((p) => normalizePaymentStatus(p.status) === "Pending").length],
     ]),
-    report("sales-summary", "Sales Summary", "Sales invoices recorded in the selected period.", "Sales", ["Date", "Invoice", "Customer", "Status", "Total"], salesSummaryRows, [
-      ["Invoices", data.sales.length], ["Amount", `Rs.${money(totalSales)}`], ["Paid", data.sales.filter((s) => s.status === "Paid").length], ["Pending", data.sales.filter((s) => s.status === "Pending").length],
+    report("purchase-detail", "Purchase Detail", "Line-item purchase report with batch, expiry, quantity, rate and amount.", "Purchase", ["Date", "Bill No", "Supplier", "Product", "Batch", "Expiry", "Qty", "Rate", "Line Amount", "Bill Total", "Status"], purchaseDetailRows, [
+      ["Lines", purchaseDetailRows.length], ["Bills", data.purchases.length], ["Amount", `Rs.${money(totalPurchases)}`], ["Suppliers", uniqueCount(data.purchases.map((p) => p.supplier_name ?? "-"))],
+    ]),
+    report("sales-summary", "Sales Summary", "Sales invoices with subtotal, discount, tax, total and payment status.", "Sales", ["Date", "Invoice", "Customer", "Items", "Subtotal", "Discount", "Tax", "Total", "Status"], salesSummaryRows, [
+      ["Invoices", data.sales.length], ["Amount", `Rs.${money(totalSales)}`], ["Paid", data.sales.filter((s) => normalizePaymentStatus(s.status) === "Paid").length], ["Pending", data.sales.filter((s) => normalizePaymentStatus(s.status) === "Pending").length],
+    ]),
+    report("sales-detail", "Sales Detail", "Line-item sales report with customer, product, quantity, rate and amount.", "Sales", ["Date", "Invoice", "Customer", "Product", "Qty", "Rate", "Line Amount", "Invoice Total", "Status"], salesDetailRows, [
+      ["Lines", salesDetailRows.length], ["Invoices", data.sales.length], ["Amount", `Rs.${money(totalSales)}`], ["Customers", uniqueCount(data.sales.map((s) => s.customer_name ?? "Walk-in"))],
     ]),
     report("inventory-valuation", "Inventory Valuation", "Cost and selling value of current inventory.", "Inventory", ["Product", "Stock", "Cost Price", "Selling Price", "Cost Value", "Selling Value"], valuationRows, [
       ["Cost Value", `Rs.${money(totalStockValue)}`], ["Selling Value", `Rs.${money(data.products.reduce((sum, p) => sum + Number(p.stock) * Number(p.selling_price), 0))}`], ["Items", data.products.length], ["Method", "Current stock"],
@@ -309,8 +367,11 @@ function buildReports(data: {
     report("employee-audit", "Employee Audit Logs", "Requires user activity/audit log table.", "Operations", ["Date", "Employee", "Action", "Reference", "Amount"], placeholderRows(["Employee audit log table is not configured yet."]), [
       ["Logs", "Not configured"], ["Users", "-"], ["Actions", "-"], ["Status", "Needs audit table"],
     ]),
-    report("daily-dashboard", "Daily Summary Dashboard", "Day-wise sales, purchase, credit and collection summary.", "Dashboard", ["Date", "Sales", "Purchases", "Customer Debit", "Customer Credit"], dailySummaryRows, [
+    report("daily-dashboard", "Daily Summary Dashboard", "Day-wise sales, purchase, customer pending, customer collection and supplier payable summary.", "Dashboard", ["Date", "Sales", "Purchases", "Customer Pending", "Customer Collection", "Supplier Payable", "Supplier Payment"], dailySummaryRows, [
       ["Days", dailySummaryRows.length], ["Sales", `Rs.${money(totalSales)}`], ["Purchases", `Rs.${money(totalPurchases)}`], ["Ledger Entries", data.ledgerEntries.length],
+    ]),
+    report("financial-ledger-detail", "Financial Ledger Detail", "Auto ledger built from sales, purchases, customer collections and supplier payments.", "Ledger", ["Date", "Party", "Type", "Reference", "Debit", "Credit", "Status"], financialLedgerRows, [
+      ["Entries", financialLedgerRows.length], ["Debit", `Rs.${money(sumMoneyColumn(financialLedgerRows, 4))}`], ["Credit", `Rs.${money(sumMoneyColumn(financialLedgerRows, 5))}`], ["Source", "Auto + payments"],
     ]),
     // report("whatsapp-pdf", "WhatsApp/PDF Automated Reports", "All reports can be downloaded or shared. Fully automatic scheduled WhatsApp needs a backend/API.", "Automation", ["Report", "Download", "Share", "Automation"], [["All Reports", "Ready", "Ready", "Manual share ready"], ["Scheduled WhatsApp", "Needs backend", "Needs WhatsApp API", "Not configured"]], [
     //   ["PDF", "Ready"], ["Android Share", "Ready"], ["Web Share", "Ready"], ["Auto WhatsApp", "Needs API"],
@@ -350,6 +411,59 @@ function productMovement(data: Parameters<typeof buildReports>[0]) {
   });
 }
 
+function stockStatus(product: Product) {
+  const stock = Number(product.stock);
+  if (stock <= 0) return "Out of stock";
+  if (stock <= 10) return "Low stock";
+  if (product.expiry && new Date(product.expiry) < new Date()) return "Expired";
+  if (isExpiredOrExpiring(product.expiry)) return "Expiring soon";
+  return "Available";
+}
+
+function saleItemCount(data: Parameters<typeof buildReports>[0], saleId: string) {
+  return data.saleItems.filter((item) => item.sale_id === saleId).length;
+}
+
+function purchaseItemCount(data: Parameters<typeof buildReports>[0], purchaseId: string) {
+  return data.purchaseItems.filter((item) => item.purchase_id === purchaseId).length;
+}
+
+function saleDetail(data: Parameters<typeof buildReports>[0]) {
+  return data.saleItems.map((item) => {
+    const sale = data.saleMap.get(item.sale_id);
+    return [
+      sale?.date ?? "-",
+      sale?.invoice_no ?? "-",
+      sale?.customer_name ?? "Walk-in",
+      item.product_name ?? "-",
+      Number(item.qty),
+      `Rs.${money(Number(item.price))}`,
+      `Rs.${money(Number(item.amount))}`,
+      `Rs.${money(Number(sale?.total ?? 0))}`,
+      normalizePaymentStatus(sale?.status ?? "-"),
+    ];
+  });
+}
+
+function purchaseDetail(data: Parameters<typeof buildReports>[0]) {
+  return data.purchaseItems.map((item) => {
+    const purchase = data.purchaseMap.get(item.purchase_id);
+    return [
+      purchase?.date ?? "-",
+      purchase?.bill_no ?? "-",
+      purchase?.supplier_name ?? "-",
+      item.product_name ?? "-",
+      item.batch ?? "-",
+      item.expiry ?? "-",
+      Number(item.qty),
+      `Rs.${money(Number(item.price))}`,
+      `Rs.${money(Number(item.amount))}`,
+      `Rs.${money(Number(purchase?.total ?? 0))}`,
+      normalizePaymentStatus(purchase?.status ?? "-"),
+    ];
+  });
+}
+
 function itemProfit(data: Parameters<typeof buildReports>[0]) {
   const grouped = new Map<string, { qty: number; sales: number; cost: number }>();
   data.saleItems.forEach((item) => {
@@ -381,10 +495,49 @@ function dailySummary(data: Parameters<typeof buildReports>[0]) {
   return Array.from(dates).sort().map((date) => {
     const sales = data.sales.filter((s) => s.date === date).reduce((sum, s) => sum + Number(s.total), 0);
     const purchases = data.purchases.filter((p) => p.date === date).reduce((sum, p) => sum + Number(p.total), 0);
-    const debit = data.ledgerEntries.filter((l) => l.date === date && l.type === "Debit").reduce((sum, l) => sum + Number(l.amount), 0);
-    const credit = data.ledgerEntries.filter((l) => l.date === date && l.type === "Credit").reduce((sum, l) => sum + Number(l.amount), 0);
-    return [date, `Rs.${money(sales)}`, `Rs.${money(purchases)}`, `Rs.${money(debit)}`, `Rs.${money(credit)}`];
+    const customerPending = data.sales.filter((s) => s.date === date && normalizePaymentStatus(s.status) === "Pending").reduce((sum, s) => sum + Number(s.total), 0);
+    const customerCollection = data.sales.filter((s) => s.date === date && normalizePaymentStatus(s.status) === "Paid").reduce((sum, s) => sum + Number(s.total), 0)
+      + data.ledgerEntries.filter((l) => l.date === date && l.type === "Credit" && /customer due collection/i.test(l.note ?? "")).reduce((sum, l) => sum + Number(l.amount), 0);
+    const supplierPayable = data.purchases.filter((p) => p.date === date && normalizePaymentStatus(p.status) === "Pending").reduce((sum, p) => sum + Number(p.total), 0);
+    const supplierPayment = data.purchases.filter((p) => p.date === date && normalizePaymentStatus(p.status) === "Paid").reduce((sum, p) => sum + Number(p.total), 0)
+      + data.ledgerEntries.filter((l) => l.date === date && l.type === "Debit" && /supplier payment/i.test(l.note ?? "")).reduce((sum, l) => sum + Number(l.amount), 0);
+    return [date, `Rs.${money(sales)}`, `Rs.${money(purchases)}`, `Rs.${money(customerPending)}`, `Rs.${money(customerCollection)}`, `Rs.${money(supplierPayable)}`, `Rs.${money(supplierPayment)}`];
   });
+}
+
+function financialLedger(data: Parameters<typeof buildReports>[0]) {
+  const rows: (string | number)[][] = [];
+
+  data.sales.forEach((sale) => {
+    const status = normalizePaymentStatus(sale.status);
+    rows.push([sale.date, sale.customer_name ?? "Walk-in", "Sale", sale.invoice_no, `Rs.${money(Number(sale.total))}`, "Rs.0.00", status]);
+    if (status === "Paid") {
+      rows.push([sale.date, sale.customer_name ?? "Walk-in", "Customer Payment", sale.invoice_no, "Rs.0.00", `Rs.${money(Number(sale.total))}`, "Collected"]);
+    }
+  });
+
+  data.purchases.forEach((purchase) => {
+    const status = normalizePaymentStatus(purchase.status);
+    rows.push([purchase.date, purchase.supplier_name ?? "-", "Purchase", purchase.bill_no, "Rs.0.00", `Rs.${money(Number(purchase.total))}`, status]);
+    if (status === "Paid") {
+      rows.push([purchase.date, purchase.supplier_name ?? "-", "Supplier Payment", purchase.bill_no, `Rs.${money(Number(purchase.total))}`, "Rs.0.00", "Paid"]);
+    }
+  });
+
+  data.ledgerEntries.forEach((entry) => {
+    const isDebit = entry.type === "Debit";
+    rows.push([
+      entry.date,
+      entry.party,
+      entry.note ?? entry.type,
+      "-",
+      isDebit ? `Rs.${money(Number(entry.amount))}` : "Rs.0.00",
+      isDebit ? "Rs.0.00" : `Rs.${money(Number(entry.amount))}`,
+      "Manual/Payment",
+    ]);
+  });
+
+  return rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
 }
 
 function createReportPdf(report: Report, fromDate: string, toDate: string) {
@@ -492,6 +645,16 @@ function sumColumn(rows: (string | number)[][], index: number) {
   return rows.reduce((sum, row) => sum + Number(row[index] || 0), 0);
 }
 
+function sumMoneyColumn(rows: (string | number)[][], index: number) {
+  return rows.reduce((sum, row) => sum + numberFromMoney(String(row[index] ?? "0")), 0);
+}
+
 function numberFromMoney(value: string) {
   return Number(value.replace(/[^0-9.-]/g, "")) || 0;
+}
+
+function normalizePaymentStatus(status: string) {
+  if (/paid|received|cash/i.test(status)) return "Paid";
+  if (/pending|udhari|credit/i.test(status)) return "Pending";
+  return status || "-";
 }
