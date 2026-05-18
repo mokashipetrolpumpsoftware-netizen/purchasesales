@@ -107,11 +107,11 @@ function Customers() {
       ].join("\n");
       return collectCustomer.phone ? { phone: collectCustomer.phone, message } : null;
     },
-    onSuccess: (notification) => {
+    onSuccess: async (notification) => {
       toast.success("Payment collected");
       if (notification) {
         const whatsappOpened = openWhatsAppMessage(notification.phone, notification.message);
-        const smsOpened = openSmsMessage(notification.phone, notification.message);
+        const smsOpened = await openSmsMessage(notification.phone, notification.message);
         if (!whatsappOpened || !smsOpened) toast.warning("Customer phone number missing for message");
       }
       if (!notification && collectCustomer) toast.warning("Customer phone number missing for message");
