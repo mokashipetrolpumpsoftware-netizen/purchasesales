@@ -8,13 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { useShop } from "@/hooks/useShop";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export const Route = createFileRoute("/_app/sales/")({ component: Sales });
 
@@ -28,6 +30,9 @@ function Sales() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Sale | null>(null);
   const [form, setForm] = useState(emptyEditForm);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [invoiceFilter, setInvoiceFilter] = useState("");
 
   const { data: rows = [] } = useQuery({
     queryKey: ["sales", shop?.shop_id],
@@ -106,6 +111,24 @@ function Sales() {
     setOpen(true);
   };
 
+  const filteredRows = rows.filter((sale) => {
+    const invoiceMatch = sale.invoice_no.toLowerCase().includes(invoiceFilter.trim().toLowerCase());
+    const fromMatch = !fromDate || sale.date >= fromDate;
+    const toMatch = !toDate || sale.date <= toDate;
+    return invoiceMatch && fromMatch && toMatch;
+  });
+  const filteredTotal = filteredRows.reduce((sum, sale) => sum + Number(sale.total), 0);
+
+  const downloadReport = () => {
+    if (!filteredRows.length) {
+      toast.error("No invoices found for selected filters");
+      return;
+    }
+
+    const pdf = createSalesReportPdf(filteredRows, fromDate, toDate, invoiceFilter);
+    pdf.save("sales-invoice-report.pdf");
+  };
+
   return (
     <div>
       <PageHeader title="Sales" description="All invoices" actions={<Button asChild><Link to="/sales/new"><Plus className="h-4 w-4 mr-2" />New Invoice</Link></Button>} />
@@ -134,6 +157,33 @@ function Sales() {
           <DialogFooter><Button onClick={() => update.mutate()} disabled={update.isPending}>Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <Card className="p-3 sm:p-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] gap-3 md:gap-4 items-end">
+          <div className="space-y-2">
+            <Label htmlFor="sales-from">From date</Label>
+            <Input id="sales-from" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sales-to">To date</Label>
+            <Input id="sales-to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sales-invoice">Invoice number</Label>
+            <Input id="sales-invoice" value={invoiceFilter} onChange={(e) => setInvoiceFilter(e.target.value)} placeholder="INV-000001" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 md:flex">
+            <Button variant="outline" onClick={() => {
+              setFromDate("");
+              setToDate("");
+              setInvoiceFilter("");
+            }}>Clear</Button>
+            <Button onClick={downloadReport}><Download className="h-4 w-4 mr-2" />Report</Button>
+          </div>
+        </div>
+        <div className="mt-3 text-sm text-muted-foreground">
+          Showing {filteredRows.length} invoice{filteredRows.length === 1 ? "" : "s"} | Total Rs.{filteredTotal.toLocaleString()}
+        </div>
+      </Card>
       <Card>
         <Table>
           <TableHeader><TableRow>
@@ -141,8 +191,8 @@ function Sales() {
             <TableHead className="text-right">Amount</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {rows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No invoices yet</TableCell></TableRow>}
-            {rows.map((s) => (
+            {filteredRows.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No invoices found</TableCell></TableRow>}
+            {filteredRows.map((s) => (
               <TableRow key={s.id}>
                 <TableCell className="font-medium">{s.invoice_no}</TableCell>
                 <TableCell>{s.customer_name || "Walk-in"}</TableCell>
@@ -162,4 +212,59 @@ function Sales() {
       </Card>
     </div>
   );
+}
+
+function createSalesReportPdf(rows: Sale[], fromDate: string, toDate: string, invoiceFilter: string) {
+  const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const width = pdf.internal.pageSize.getWidth();
+  const total = rows.reduce((sum, sale) => sum + Number(sale.total), 0);
+
+  pdf.setFontSize(18);
+  pdf.text("Sales Invoice Report", width / 2, 42, { align: "center" });
+  pdf.setFontSize(11);
+  pdf.text(`Period: ${periodText(fromDate, toDate)}${invoiceFilter.trim() ? ` | Invoice: ${invoiceFilter.trim()}` : ""}`, width / 2, 62, { align: "center" });
+
+  autoTable(pdf, {
+    startY: 84,
+    head: [["Invoices", "Total Amount", "Paid", "Pending"]],
+    body: [[
+      rows.length,
+      `Rs.${money(total)}`,
+      rows.filter((sale) => sale.status === "Paid").length,
+      rows.filter((sale) => sale.status === "Pending").length,
+    ]],
+    theme: "grid",
+    styles: { halign: "center", fontSize: 10 },
+  });
+
+  autoTable(pdf, {
+    startY: 145,
+    head: [["Invoice", "Date", "Customer", "Subtotal", "Discount", "Tax", "Total", "Status"]],
+    body: rows.map((sale) => [
+      sale.invoice_no,
+      sale.date,
+      sale.customer_name ?? "Walk-in",
+      `Rs.${money(Number(sale.subtotal))}`,
+      `Rs.${money(Number(sale.discount))}`,
+      `Rs.${money(Number(sale.tax))}`,
+      `Rs.${money(Number(sale.total))}`,
+      sale.status,
+    ]),
+    theme: "grid",
+    headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42] },
+    styles: { fontSize: 9, cellPadding: 6 },
+  });
+
+  return pdf;
+}
+
+function periodText(fromDate: string, toDate: string) {
+  if (fromDate && toDate) return `${fromDate} to ${toDate}`;
+  if (fromDate) return `From ${fromDate}`;
+  if (toDate) return `Up to ${toDate}`;
+  return "All dates";
+}
+
+function money(value: number) {
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

@@ -62,7 +62,7 @@ function NewSale() {
       if (lines.some((line) => !line.id || line.qty <= 0)) throw new Error("Enter valid quantity");
       if (lines.some((line) => line.price <= 0)) throw new Error("Enter valid rate");
       if (paymentType === "udhari" && !selectedCustomer) throw new Error("Select a customer for udhari sale");
-      const invoice_no = `INV-${Date.now().toString().slice(-6)}`;
+      const invoice_no = await getNextInvoiceNumber(shop!.shop_id);
       const status = paymentType === "cash" ? "Paid" : "Pending";
       const { data: sale, error } = await supabase.from("sales").insert({
         shop_id: shop!.shop_id,
@@ -218,4 +218,19 @@ function NewSale() {
       </div>
     </div>
   );
+}
+
+async function getNextInvoiceNumber(shopId: string) {
+  const { data, error } = await supabase
+    .from("sales")
+    .select("invoice_no")
+    .eq("shop_id", shopId);
+  if (error) throw error;
+
+  const lastSerial = (data ?? []).reduce((max, sale) => {
+    const match = /^INV-(\d+)$/.exec(sale.invoice_no ?? "");
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+
+  return `INV-${String(lastSerial + 1).padStart(6, "0")}`;
 }
